@@ -16,6 +16,7 @@ import logging
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 from typing import Any
 from urllib.parse import urlparse
 
@@ -437,8 +438,12 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
         pass
 
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+
 def run_dashboard(host: str = "0.0.0.0", port: int = 9000):
-    server = HTTPServer((host, port), DashboardHTTPHandler)
+    server = ThreadedHTTPServer((host, port), DashboardHTTPHandler)
     log.info("zGPU Control & Telemetry Dashboard running at http://%s:%d/", host, port)
     try:
         server.serve_forever()
