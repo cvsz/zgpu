@@ -74,6 +74,30 @@ service = ZGPUModelService()
 
 
 class JSONRPCHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        """Respond with health status or usage info on GET requests."""
+        if self.path in ("/", "/rpc", "/health"):
+            data = {
+                "jsonrpc": "2.0",
+                "result": {
+                    "healthy": True,
+                    "engine": "zGPU-Silicon-SIMT-TensorCore",
+                    "device": "zGPU-SM-0",
+                    "status": "ready",
+                    "endpoints": {
+                        "POST /rpc": "JSON-RPC 2.0 API (methods: system.health, llm.generate)",
+                    },
+                },
+            }
+            body = json.dumps(data, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_error(404, "Endpoint not found")
+
     def do_POST(self):
         content_length = int(self.headers.get("Content-Length", 0))
         raw_body = self.rfile.read(content_length).decode("utf-8")
