@@ -1,11 +1,12 @@
 import pytest
+
+from agi.swarm import SuperAGISwarm
+from distributed.tensor_parallel import ColumnParallelLinear, DistributedCrossbar, RowParallelLinear
 from kernels.flash_attn.flash_attention import FlashAttention3Kernel
 from llm.speculative.engine import SpeculativeDecoder
-from llm.transformer import LLMConfig, ZGPULLM
-from distributed.tensor_parallel import DistributedCrossbar, ColumnParallelLinear, RowParallelLinear
-from torch_compat.tensor import ZTensor
-from agi.swarm import SuperAGISwarm
+from llm.transformer import ZGPULLM, LLMConfig
 from runtime.runtime import ZRuntime
+from torch_compat.tensor import ZTensor
 
 
 def test_flash_attention_3():

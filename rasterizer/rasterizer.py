@@ -1,9 +1,10 @@
 """zGPU Graphics Pipeline: Triangle Rasterizer, Interpolation, & Fragment Shader."""
 
 from __future__ import annotations
+
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import List, Tuple, Callable
 
 
 @dataclass
@@ -35,16 +36,23 @@ class Rasterizer:
     """Fixed-function and programmable fragment rasterizer simulating GPU ROPs."""
 
     @staticmethod
-    def edge_function(a: Vertex, b: Vertex, c: Tuple[float, float]) -> float:
+    def edge_function(a: Vertex, b: Vertex, c: tuple[float, float]) -> float:
         return (c[0] - a.x) * (b.y - a.y) - (c[1] - a.y) * (b.x - a.x)
 
-    def draw_triangle(self, fb: Framebuffer, v0: Vertex, v1: Vertex, v2: Vertex,
-                      fragment_shader: Callable[[float, float, float, Tuple[float, float, float]], Tuple[int, int, int]] | None = None):
+    def draw_triangle(
+        self,
+        fb: Framebuffer,
+        v0: Vertex,
+        v1: Vertex,
+        v2: Vertex,
+        fragment_shader: Callable[[float, float, float, tuple[float, float, float]], tuple[int, int, int]]
+        | None = None,
+    ):
         # Bounding box
-        min_x = max(0, int(math.floor(min(v0.x, v1.x, v2.x))))
-        max_x = min(fb.width - 1, int(math.ceil(max(v0.x, v1.x, v2.x))))
-        min_y = max(0, int(math.floor(min(v0.y, v1.y, v2.y))))
-        max_y = min(fb.height - 1, int(math.ceil(max(v0.y, v1.y, v2.y))))
+        min_x = max(0, math.floor(min(v0.x, v1.x, v2.x)))
+        max_x = min(fb.width - 1, math.ceil(max(v0.x, v1.x, v2.x)))
+        min_y = max(0, math.floor(min(v0.y, v1.y, v2.y)))
+        max_y = min(fb.height - 1, math.ceil(max(v0.y, v1.y, v2.y)))
 
         area = self.edge_function(v0, v1, (v2.x, v2.y))
         if abs(area) < 1e-6:

@@ -1,8 +1,9 @@
 """zCompiler Command-Line Interface."""
+
 from __future__ import annotations
 
 import argparse
-import sys
+
 from isa.assembler import Assembler
 
 
@@ -14,7 +15,7 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.input_file, "r") as f:
+    with open(args.input_file) as f:
         src = f.read()
 
     bytecode = Assembler.assemble(src)

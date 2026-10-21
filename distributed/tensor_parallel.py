@@ -3,9 +3,9 @@
 Decomposes large Linear projection matrices across multiple virtual zGPU devices
 and performs peer-to-peer All-Reduce collective communications over zLink.
 """
+
 from __future__ import annotations
 
-from typing import List, Tuple
 from kernels.llm_kernels import LLMKernels
 from runtime.runtime import ZRuntime
 
@@ -18,7 +18,7 @@ class DistributedCrossbar:
         self.runtimes = [ZRuntime() for _ in range(world_size)]
         self.kernels = [LLMKernels(rt) for rt in self.runtimes]
 
-    def all_reduce(self, shards: List[List[List[float]]]) -> List[List[List[float]]]:
+    def all_reduce(self, shards: list[list[list[float]]]) -> list[list[list[float]]]:
         """Performs hardware All-Reduce SUM across all participating device shards."""
         assert len(shards) == self.world_size
         rows = len(shards[0])
@@ -50,7 +50,7 @@ class ColumnParallelLinear:
             shard = [[0.01 * ((i + j + rank) % 5) for j in range(in_features)] for i in range(self.shard_out)]
             self.weight_shards.append(shard)
 
-    def forward(self, x: List[List[float]]) -> List[List[List[float]]]:
+    def forward(self, x: list[list[float]]) -> list[list[list[float]]]:
         """Returns sharded output for each device rank."""
         outputs = []
         for rank in range(self.world_size):
@@ -78,7 +78,7 @@ class RowParallelLinear:
             shard = [[0.01 * ((i + j + rank) % 5) for j in range(self.shard_in)] for i in range(out_features)]
             self.weight_shards.append(shard)
 
-    def forward(self, x_shards: List[List[List[float]]]) -> List[List[float]]:
+    def forward(self, x_shards: list[list[list[float]]]) -> list[list[float]]:
         """Computes partial products on each device and performs All-Reduce."""
         partial_products = []
         for rank in range(self.world_size):

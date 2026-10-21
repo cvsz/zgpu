@@ -1,9 +1,10 @@
 import json
 from unittest.mock import MagicMock, patch
+
 import pytest
 
+from cluster.network_pool import NetworkCPUPool
 from cluster.worker.cpu_worker import CPUComputeEngine, CPUWorkerHTTPHandler
-from cluster.network_pool import NetworkCPUPool, NetworkNode
 
 
 def test_cpu_compute_engine_gemm():
@@ -27,12 +28,9 @@ def test_cpu_worker_http_handler_gemm():
     handler.end_headers = MagicMock()
     handler.wfile = MagicMock()
 
-    req_body = json.dumps({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "compute.gemm",
-        "params": {"A": [[1.0, 1.0]], "B": [[2.0], [2.0]]}
-    }).encode("utf-8")
+    req_body = json.dumps(
+        {"jsonrpc": "2.0", "id": 1, "method": "compute.gemm", "params": {"A": [[1.0, 1.0]], "B": [[2.0], [2.0]]}}
+    ).encode("utf-8")
 
     handler.rfile = MagicMock()
     handler.rfile.read.return_value = req_body

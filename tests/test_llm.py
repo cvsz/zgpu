@@ -1,5 +1,12 @@
+import json
+from unittest.mock import MagicMock
+
 import pytest
-from llm.transformer import LLMConfig, ZGPULLM
+
+from llm.kv_cache import KVCache
+from llm.quantization import Quantizer
+from llm.server import JSONRPCHandler
+from llm.transformer import ZGPULLM, LLMConfig
 from nn.linear import Linear
 from runtime.runtime import ZRuntime
 
@@ -40,9 +47,6 @@ def test_transformer_generate():
     generated = model.generate(prompt, max_new_tokens=4)
     assert len(generated) == 6
     assert generated[:2] == prompt
-import json
-from unittest.mock import MagicMock
-from llm.server import JSONRPCHandler
 
 
 def test_server_rpc_methods():
@@ -64,8 +68,6 @@ def test_server_rpc_methods():
     res = json.loads(written_data.decode("utf-8"))
     assert res["id"] == 10
     assert res["result"]["healthy"] is True
-from llm.quantization import Quantizer
-from llm.kv_cache import KVCache
 
 
 def test_quantization_int8():
@@ -77,7 +79,7 @@ def test_quantization_int8():
     assert q_tensor.q_data[-1] == 127
 
     deq = q_tensor.dequantize()
-    for orig, d in zip(data, deq):
+    for orig, d in zip(data, deq, strict=False):
         assert pytest.approx(orig, abs=0.02) == d
 
 
@@ -100,7 +102,7 @@ def test_kv_cache():
 
     k0 = [1.0, 2.0, 3.0, 4.0]
     v0 = [0.1, 0.2, 0.3, 0.4]
-    all_k, all_v = cache.update(0, k0, v0)
+    all_k, _all_v = cache.update(0, k0, v0)
     assert len(all_k) == 1
     assert all_k[0] == k0
     cache.advance_step()
@@ -108,6 +110,6 @@ def test_kv_cache():
 
     k1 = [5.0, 6.0, 7.0, 8.0]
     v1 = [0.5, 0.6, 0.7, 0.8]
-    all_k2, all_v2 = cache.update(0, k1, v1)
+    all_k2, _all_v2 = cache.update(0, k1, v1)
     assert len(all_k2) == 2
     assert all_k2[1] == k1

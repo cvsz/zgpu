@@ -1,14 +1,12 @@
 """zGPU Autonomous Kernel Benchmarking, Verification and Mutation Evaluator."""
+
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
 
 from isa.assembler import Assembler
 from runtime.runtime import ZRuntime
 from self_coding.generator import GeneratedKernel
-from simulator.sm import f32_to_bits, bits_to_f32
 
 
 @dataclass
@@ -18,13 +16,13 @@ class EvaluationReport:
     cycles_elapsed: int
     instructions_retired: int
     ipc: float
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class KernelEvaluator:
     """Simulates and profiles self-coded kernels on cycle-accurate zGPU hardware."""
 
-    def __init__(self, runtime: Optional[ZRuntime] = None):
+    def __init__(self, runtime: ZRuntime | None = None):
         self.runtime = runtime or ZRuntime()
 
     def evaluate_kernel(self, kernel: GeneratedKernel, num_warps: int = 1) -> EvaluationReport:

@@ -3,6 +3,7 @@
 Listens on HTTP/JSON-RPC for partitioned matrix multiplication chunks, token projections,
 and vector embeddings dispatched from the primary zGPU host, returning computed float tensors.
 """
+
 from __future__ import annotations
 
 import json
@@ -11,7 +12,7 @@ import math
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, List
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [CPU-Worker] %(message)s")
 log = logging.getLogger("zGPU-CPU-Worker")
@@ -21,7 +22,7 @@ class CPUComputeEngine:
     """Multi-threaded / vectorized CPU compute kernels."""
 
     @staticmethod
-    def gemm_chunk(A: List[List[float]], B: List[List[float]]) -> List[List[float]]:
+    def gemm_chunk(A: list[list[float]], B: list[list[float]]) -> list[list[float]]:
         """Compute standard matrix multiplication A @ B on CPU."""
         M = len(A)
         K = len(A[0]) if M > 0 else 0
@@ -44,14 +45,14 @@ class CPUComputeEngine:
         return out
 
     @staticmethod
-    def vector_norm_chunk(X: List[List[float]], weights: List[float], eps: float = 1e-5) -> List[List[float]]:
+    def vector_norm_chunk(X: list[list[float]], weights: list[float], eps: float = 1e-5) -> list[list[float]]:
         """Compute RMSNorm on CPU chunk."""
         out = []
         dim = len(weights)
         for row in X:
             var = sum(v * v for v in row) / dim
             inv_rms = 1.0 / math.sqrt(var + eps)
-            out.append([v * inv_rms * w for v, w in zip(row, weights)])
+            out.append([v * inv_rms * w for v, w in zip(row, weights, strict=False)])
         return out
 
 

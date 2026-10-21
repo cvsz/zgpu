@@ -1,11 +1,12 @@
 """zGPU Streaming Multiprocessor (SM) Core Simulator."""
 
 from __future__ import annotations
+
 import struct
-from typing import List
+
 from isa.instructions import Instruction, Opcode
-from simulator.warp import Warp, WARP_SIZE
 from simulator.memory import GlobalMemory, SharedMemory
+from simulator.warp import WARP_SIZE, Warp
 
 
 def f32_to_bits(f: float) -> int:
@@ -23,7 +24,7 @@ class StreamingMultiprocessor:
         self.sm_id = sm_id
         self.global_mem = global_mem
         self.shared_mem = SharedMemory()
-        self.warps: List[Warp] = []
+        self.warps: list[Warp] = []
         self.max_warps = max_warps
         self.active_warp_idx = 0
         self.cycle_count = 0
@@ -35,7 +36,7 @@ class StreamingMultiprocessor:
     def is_finished(self) -> bool:
         return all(w.halted for w in self.warps)
 
-    def step_cycle(self, program: List[int]) -> bool:
+    def step_cycle(self, program: list[int]) -> bool:
         """Cycle-accurate SM tick with Greedy-Then-Oldest (GTO) warp scheduler."""
         if self.is_finished() or not self.warps:
             return False
@@ -170,7 +171,7 @@ class StreamingMultiprocessor:
             taken_mask = 0
             for lane in range(WARP_SIZE):
                 if warp.is_active(lane) and warp.rf[lane][inst.rs1] != 0:
-                    taken_mask |= (1 << lane)
+                    taken_mask |= 1 << lane
 
             target_pc = warp.pc - 1 + inst.imm
             fallthrough_pc = warp.pc

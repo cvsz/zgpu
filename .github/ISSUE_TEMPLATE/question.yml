@@ -1,0 +1,45 @@
+name: ❓ Question
+description: Ask a question about zGPU usage, architecture, or internals
+title: "[Question]: "
+labels: ["question"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about zGPU? Ask away! For broader discussions, consider using GitHub Discussions.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Topic Area
+      options:
+        - Architecture / Design
+        - ISA / Assembly Programming
+        - Simulator Usage
+        - Kernel Development
+        - LLM / Neural Network Engine
+        - Compiler / JIT
+        - Runtime API
+        - RTL / Synthesis
+        - Rasterizer / Graphics
+        - Benchmarking
+        - Getting Started / Setup
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: Describe your question in detail.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What have you tried or read so far?

@@ -1,0 +1,57 @@
+# For more information see: https://github.com/github/codeowners
+# Each line is a file pattern followed by one or more owners.
+
+# Default owner for everything
+*                       @cvsz
+
+# RTL / Hardware
+/rtl/                   @cvsz
+
+# ISA & Assembler
+/isa/                   @cvsz
+
+# Simulator
+/simulator/             @cvsz
+
+# Kernels
+/kernels/               @cvsz
+
+# Neural Network & LLM
+/nn/                    @cvsz
+/llm/                   @cvsz
+
+# Compiler
+/compiler/              @cvsz
+
+# Runtime
+/runtime/               @cvsz
+
+# Rasterizer
+/rasterizer/            @cvsz
+
+# Distributed & Cluster
+/distributed/           @cvsz
+/cluster/               @cvsz
+
+# AGI Framework
+/agi/                   @cvsz
+
+# Self-Coding Engine
+/self_coding/           @cvsz
+
+# PyTorch Compatibility
+/torch_compat/          @cvsz
+
+# Dashboard
+/dashboard/             @cvsz
+
+# Benchmarks & Tests
+/benchmarks/            @cvsz
+/tests/                 @cvsz
+
+# CI/CD & GitHub Config
+/.github/               @cvsz
+
+# Documentation
+/docs/                  @cvsz
+*.md                    @cvsz

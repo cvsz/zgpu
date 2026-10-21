@@ -1,8 +1,8 @@
 """Memory Hierarchy Simulator: Coalesced Global Memory & Banked Shared Memory."""
 
 from __future__ import annotations
+
 import struct
-from typing import List, Tuple
 
 
 class GlobalMemory:
@@ -36,14 +36,14 @@ class GlobalMemory:
             return struct.unpack_from("<i", self.data, addr)[0]
         return 0
 
-    def coalesced_load_32(self, addresses: List[int], active_mask: int) -> Tuple[List[int], int]:
+    def coalesced_load_32(self, addresses: list[int], active_mask: int) -> tuple[list[int], int]:
         """Simulate coalesced memory transaction logic for a 32-lane warp.
         Returns: (values, number_of_128B_cache_lines_requested)
         """
         lines = set()
         values = []
         for lane, addr in enumerate(addresses):
-            if (active_mask & (1 << lane)):
+            if active_mask & (1 << lane):
                 cache_line = addr >> 7  # 128-byte cache line
                 lines.add(cache_line)
                 values.append(self.read_i32(addr))
@@ -64,8 +64,9 @@ class SharedMemory:
         self.total_accesses = 0
         self.bank_conflicts = 0
 
-    def access_warp(self, word_indices: List[int], active_mask: int, is_write: bool = False,
-                    write_vals: List[int] | None = None) -> List[int]:
+    def access_warp(
+        self, word_indices: list[int], active_mask: int, is_write: bool = False, write_vals: list[int] | None = None
+    ) -> list[int]:
         """Access shared memory across 32 lanes, tracking bank conflicts."""
         bank_usage: dict[int, list[int]] = {}
         results = [0] * 32
@@ -76,7 +77,7 @@ class SharedMemory:
                 bank_usage.setdefault(bank, []).append((lane, word_idx))
 
         # Check bank conflicts (multiple different word indices requesting same bank)
-        for bank, requests in bank_usage.items():
+        for _bank, requests in bank_usage.items():
             unique_addrs = set(idx for _, idx in requests)
             if len(unique_addrs) > 1:
                 self.bank_conflicts += len(unique_addrs) - 1

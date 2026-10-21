@@ -1,6 +1,7 @@
 """Neural Network Linear Layer accelerated on zGPU Tensor Cores."""
+
 from __future__ import annotations
-from typing import List
+
 from kernels.llm_kernels import LLMKernels
 from runtime.runtime import ZRuntime
 
@@ -16,10 +17,12 @@ class Linear:
         self.kernels = LLMKernels(self.runtime)
 
         # Initialize weights (out_features x in_features)
-        self.weight: List[List[float]] = [[0.01 * ((i + j) % 7 - 3) for j in range(in_features)] for i in range(out_features)]
-        self.bias: List[float] = [0.0] * out_features if bias else []
+        self.weight: list[list[float]] = [
+            [0.01 * ((i + j) % 7 - 3) for j in range(in_features)] for i in range(out_features)
+        ]
+        self.bias: list[float] = [0.0] * out_features if bias else []
 
-    def forward(self, x: List[List[float]]) -> List[List[float]]:
+    def forward(self, x: list[list[float]]) -> list[list[float]]:
         """Compute forward pass: X (M x in_features) @ W^T (in_features x out_features)."""
         # Transpose weight: (in_features x out_features)
         w_t = [[self.weight[r][c] for r in range(self.out_features)] for c in range(self.in_features)]
@@ -32,5 +35,5 @@ class Linear:
 
         return out
 
-    def __call__(self, x: List[List[float]]) -> List[List[float]]:
+    def __call__(self, x: list[list[float]]) -> list[list[float]]:
         return self.forward(x)

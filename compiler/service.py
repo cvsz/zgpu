@@ -3,16 +3,16 @@
 Exposes a web IDE and JSON API for interactive compiling, assembling, and disassembling
 zGPU SIMT assembly and high-level DSL expressions.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
 
 from isa.assembler import Assembler
-from isa.instructions import Instruction
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("zCompiler-Service")
@@ -115,13 +115,15 @@ class CompilerHTTPHandler(BaseHTTPRequestHandler):
             try:
                 words = Assembler.assemble(source)
                 hex_words = [f"{w:08X}" for w in words]
-                self._send_json({
-                    "ok": True,
-                    "instructions_count": len(words),
-                    "bytes_count": len(words) * 4,
-                    "bytecode": words,
-                    "bytecode_hex": hex_words,
-                })
+                self._send_json(
+                    {
+                        "ok": True,
+                        "instructions_count": len(words),
+                        "bytes_count": len(words) * 4,
+                        "bytecode": words,
+                        "bytecode_hex": hex_words,
+                    }
+                )
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)})
         else:

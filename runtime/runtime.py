@@ -1,9 +1,9 @@
 """zGPU Host Runtime API (Driver abstraction modeled after CUDA / OpenCL)."""
 
 from __future__ import annotations
-from typing import List, Any
-from simulator.gpu import ZGPU
+
 from isa.assembler import Assembler
+from simulator.gpu import ZGPU
 
 
 class DevicePointer:
@@ -28,12 +28,12 @@ class ZRuntime:
             raise MemoryError("zGPU Out of Memory (OOM)")
         return DevicePointer(aligned, size_bytes)
 
-    def memcpy_h2d(self, dst: DevicePointer, src_data: List[float]):
+    def memcpy_h2d(self, dst: DevicePointer, src_data: list[float]):
         """Copy host array to device memory (FP32)."""
         for i, val in enumerate(src_data):
             self.device.global_mem.write_f32(dst.addr + i * 4, float(val))
 
-    def memcpy_d2h(self, src: DevicePointer, num_floats: int) -> List[float]:
+    def memcpy_d2h(self, src: DevicePointer, num_floats: int) -> list[float]:
         """Copy device memory back to host array (FP32)."""
         return [self.device.global_mem.read_f32(src.addr + i * 4) for i in range(num_floats)]
 

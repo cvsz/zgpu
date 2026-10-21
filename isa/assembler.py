@@ -1,10 +1,10 @@
 """zGPU Assembler: converts human-readable SIMT assembly to binary bytecode."""
 
 from __future__ import annotations
-import re
-from typing import List, Dict
-from isa.instructions import Opcode, Instruction
 
+import re
+
+from isa.instructions import Instruction, Opcode
 
 OPCODE_MAP = {
     "NOP": Opcode.NOP,
@@ -42,8 +42,8 @@ def parse_reg(token: str) -> int:
 
 class Assembler:
     @staticmethod
-    def assemble(source: str) -> List[int]:
-        labels: Dict[str, int] = {}
+    def assemble(source: str) -> list[int]:
+        labels: dict[str, int] = {}
         lines = source.strip().splitlines()
         clean_lines = []
 
@@ -61,7 +61,7 @@ class Assembler:
                 pc += 1
 
         # Pass 2: Assemble instructions
-        bytecode: List[int] = []
+        bytecode: list[int] = []
         for curr_pc, line in clean_lines:
             tokens = [t.strip().rstrip(",") for t in line.split() if t.strip()]
             mnemonic = tokens[0].upper()
@@ -75,8 +75,17 @@ class Assembler:
                 pass
             elif op in (Opcode.GET_TID, Opcode.GET_BID):
                 rd = parse_reg(tokens[1])
-            elif op in (Opcode.VADD, Opcode.VSUB, Opcode.VMUL, Opcode.VAND, Opcode.VOR,
-                        Opcode.VXOR, Opcode.VFADD, Opcode.VFSUB, Opcode.VFMUL):
+            elif op in (
+                Opcode.VADD,
+                Opcode.VSUB,
+                Opcode.VMUL,
+                Opcode.VAND,
+                Opcode.VOR,
+                Opcode.VXOR,
+                Opcode.VFADD,
+                Opcode.VFSUB,
+                Opcode.VFMUL,
+            ):
                 rd = parse_reg(tokens[1])
                 rs1 = parse_reg(tokens[2])
                 rs2 = parse_reg(tokens[3])

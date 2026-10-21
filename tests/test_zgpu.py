@@ -2,14 +2,13 @@
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from isa.instructions import Instruction, Opcode
 from isa.assembler import Assembler
+from isa.instructions import Instruction, Opcode
 from simulator.gpu import ZGPU
-from simulator.warp import Warp
-from simulator.memory import GlobalMemory, SharedMemory
-from simulator.sm import f32_to_bits, bits_to_f32
+from simulator.memory import SharedMemory
 
 
 def test_instruction_encode_decode():

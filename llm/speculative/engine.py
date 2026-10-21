@@ -4,18 +4,18 @@ Accelerates autoregressive inference by using a small draft model to generate K
 candidate tokens per iteration, followed by concurrent verification via the target model
 in a single parallel zGPU Tensor Core pass.
 """
+
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import List, Tuple
-from llm.transformer import LLMConfig, ZGPULLM
-from runtime.runtime import ZRuntime
+
+from llm.transformer import ZGPULLM
 
 
 @dataclass
 class SpeculativeResult:
-    tokens: List[int]
+    tokens: list[int]
     accepted_tokens: int
     draft_tokens: int
     speedup_ratio: float
@@ -35,7 +35,7 @@ class SpeculativeDecoder:
         self.draft_model = draft_model
         self.lookahead_k = lookahead_k
 
-    def generate(self, prompt_tokens: List[int], max_new_tokens: int = 12) -> SpeculativeResult:
+    def generate(self, prompt_tokens: list[int], max_new_tokens: int = 12) -> SpeculativeResult:
         t0 = time.perf_counter()
         curr_tokens = list(prompt_tokens)
         total_accepted = 0
@@ -86,7 +86,7 @@ class SpeculativeDecoder:
                 total_accepted += 1
 
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
-        speedup = (total_accepted / max(1, total_drafted / self.lookahead_k))
+        speedup = total_accepted / max(1, total_drafted / self.lookahead_k)
 
         return SpeculativeResult(
             tokens=curr_tokens,

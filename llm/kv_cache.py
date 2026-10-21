@@ -3,9 +3,8 @@
 Optimizes autoregressive generation by caching Key and Value states across decoding
 steps, avoiding redundant re-computation of previous tokens.
 """
-from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 
 class KVCache:
@@ -18,11 +17,13 @@ class KVCache:
         self.d_model = d_model
 
         # k_cache[layer][seq_idx] = List[float] (dim: d_model)
-        self.k_cache: List[List[List[float]]] = [[[] for _ in range(max_seq_len)] for _ in range(num_layers)]
-        self.v_cache: List[List[List[float]]] = [[[] for _ in range(max_seq_len)] for _ in range(num_layers)]
+        self.k_cache: list[list[list[float]]] = [[[] for _ in range(max_seq_len)] for _ in range(num_layers)]
+        self.v_cache: list[list[list[float]]] = [[[] for _ in range(max_seq_len)] for _ in range(num_layers)]
         self.current_seq_len = 0
 
-    def update(self, layer_idx: int, k_new: List[float], v_new: List[float]) -> Tuple[List[List[float]], List[List[float]]]:
+    def update(
+        self, layer_idx: int, k_new: list[float], v_new: list[float]
+    ) -> tuple[list[list[float]], list[list[float]]]:
         """Append new K and V token vectors to cache and return the active sequence history."""
         if self.current_seq_len < self.max_seq_len:
             self.k_cache[layer_idx][self.current_seq_len] = list(k_new)

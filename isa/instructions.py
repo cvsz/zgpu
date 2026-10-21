@@ -1,8 +1,9 @@
 """zGPU Instruction Set Architecture definitions and binary codec."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass
-from enum import IntEnum, auto
+from enum import IntEnum
 
 
 class Opcode(IntEnum):
@@ -20,20 +21,20 @@ class Opcode(IntEnum):
     VFMUL = 0x12
     VFFMA = 0x13
     # Memory Loads/Stores
-    VLOAD_G = 0x20   # Vector Load Global
+    VLOAD_G = 0x20  # Vector Load Global
     VSTORE_G = 0x21  # Vector Store Global
-    VLOAD_S = 0x22   # Vector Load Shared
+    VLOAD_S = 0x22  # Vector Load Shared
     VSTORE_S = 0x23  # Vector Store Shared
     # Flow & Warp Divergence
     BRA = 0x30
-    BRA_DIV = 0x31   # Branch on vector condition (divergence push)
-    JOIN = 0x32      # Reconvergence pop
+    BRA_DIV = 0x31  # Branch on vector condition (divergence push)
+    JOIN = 0x32  # Reconvergence pop
     BAR_SYNC = 0x33  # Thread block barrier
     # Tensor / Matrix Acceleration
     MMA_SYNC = 0x40  # 4x4 matrix multiply-accumulate
     # Special Registers & IDs
-    GET_TID = 0x50   # Get thread lane ID
-    GET_BID = 0x51   # Get block ID
+    GET_TID = 0x50  # Get thread lane ID
+    GET_BID = 0x51  # Get block ID
     # Termination
     HALT = 0x7F
 
@@ -51,7 +52,7 @@ class Instruction:
     def encode(self) -> int:
         """Encode 32-bit binary instruction word."""
         # [31:24] imm/rs3, [23:19] rs2, [18:14] rs1, [13:7] rd, [6:0] opcode
-        raw = (self.op & 0x7F)
+        raw = self.op & 0x7F
         raw |= (self.rd & 0x7F) << 7
         raw |= (self.rs1 & 0x1F) << 14
         raw |= (self.rs2 & 0x1F) << 19

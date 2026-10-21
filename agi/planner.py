@@ -2,11 +2,11 @@
 
 Accelerated on zGPU by scoring candidate reasoning branches concurrently via Tensor Cores.
 """
+
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Tuple
+from dataclasses import dataclass
 
 from kernels.llm_kernels import LLMKernels
 from runtime.runtime import ZRuntime
@@ -16,7 +16,7 @@ from runtime.runtime import ZRuntime
 class ThoughtCandidate:
     thought_id: str
     action: str
-    feature_vector: List[float]
+    feature_vector: list[float]
     score: float = 0.0
     status: str = "pending"
 
@@ -24,7 +24,7 @@ class ThoughtCandidate:
 class SuperAGIPlanner:
     """Multi-path Tree-of-Thought and candidate evaluation engine accelerated on zGPU."""
 
-    def __init__(self, feature_dim: int = 16, runtime: Optional[ZRuntime] = None):
+    def __init__(self, feature_dim: int = 16, runtime: ZRuntime | None = None):
         self.feature_dim = feature_dim
         self.runtime = runtime or ZRuntime()
         self.kernels = LLMKernels(self.runtime)
@@ -32,14 +32,14 @@ class SuperAGIPlanner:
         # Objective weight vector (evaluated against candidate features)
         self.objective_weights = [1.0 / math.sqrt(feature_dim)] * feature_dim
 
-    def set_objective(self, weights: List[float]):
+    def set_objective(self, weights: list[float]):
         norm = math.sqrt(sum(w * w for w in weights)) or 1e-8
         aligned = [w / norm for w in weights]
         if len(aligned) < self.feature_dim:
             aligned.extend([0.0] * (self.feature_dim - len(aligned)))
-        self.objective_weights = aligned[:self.feature_dim]
+        self.objective_weights = aligned[: self.feature_dim]
 
-    def evaluate_candidates(self, candidates: List[ThoughtCandidate]) -> List[ThoughtCandidate]:
+    def evaluate_candidates(self, candidates: list[ThoughtCandidate]) -> list[ThoughtCandidate]:
         """Concurrently evaluate and score candidate thoughts using zGPU Tensor Core GEMM."""
         if not candidates:
             return []
@@ -65,6 +65,6 @@ class SuperAGIPlanner:
         candidates.sort(key=lambda c: c.score, reverse=True)
         return candidates
 
-    def select_best_path(self, candidates: List[ThoughtCandidate]) -> Optional[ThoughtCandidate]:
+    def select_best_path(self, candidates: list[ThoughtCandidate]) -> ThoughtCandidate | None:
         ranked = self.evaluate_candidates(candidates)
         return ranked[0] if ranked else None

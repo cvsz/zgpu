@@ -3,6 +3,7 @@
 Discovers active compute nodes across local subnets using UDP broadcast beaconing
 and concurrent TCP/HTTP port probing (ports 8880 [zGPU/LLM], 9000 [Dashboard], 9200 [CPU Worker]).
 """
+
 from __future__ import annotations
 
 import json
@@ -12,8 +13,8 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [ClusterDiscovery] %(message)s")
 log = logging.getLogger("zGPU-ClusterDiscovery")
@@ -29,7 +30,7 @@ class DiscoveredNode:
     node_type: str  # "zgpu" or "network_cpu" or "cluster_node"
     status: str
     latency_ms: float
-    capabilities: Dict[str, Any]
+    capabilities: dict[str, Any]
 
     @property
     def url(self) -> str:
@@ -44,7 +45,7 @@ class ClusterBeaconBroadcaster:
         self.service_port = service_port
         self.node_type = node_type
         self.running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
     def start(self, interval_seconds: float = 3.0):
         self.running = True
@@ -61,12 +62,14 @@ class ClusterBeaconBroadcaster:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.settimeout(0.5)
 
-        beacon_payload = json.dumps({
-            "magic": "ZGPU_NODE_BEACON",
-            "node_type": self.node_type,
-            "service_port": self.service_port,
-            "version": "1.0",
-        }).encode("utf-8")
+        beacon_payload = json.dumps(
+            {
+                "magic": "ZGPU_NODE_BEACON",
+                "node_type": self.node_type,
+                "service_port": self.service_port,
+                "version": "1.0",
+            }
+        ).encode("utf-8")
 
         while self.running:
             try:
@@ -81,11 +84,11 @@ class ClusterBeaconBroadcaster:
 class NetworkComputeScanner:
     """Scans and probes subnets and UDP beacons for network GPU & CPU acceleration nodes."""
 
-    def __init__(self, probe_ports: Optional[List[int]] = None, timeout: float = 0.8):
+    def __init__(self, probe_ports: list[int] | None = None, timeout: float = 0.8):
         self.probe_ports = probe_ports or DEFAULT_PROBE_PORTS
         self.timeout = timeout
 
-    def probe_node(self, ip: str, port: int) -> Optional[DiscoveredNode]:
+    def probe_node(self, ip: str, port: int) -> DiscoveredNode | None:
         """Probes an IP:Port for active zGPU or CPU worker JSON-RPC endpoints."""
         url = f"http://{ip}:{port}"
         t0 = time.perf_counter()
@@ -134,9 +137,11 @@ class NetworkComputeScanner:
 
         return None
 
-    def scan_subnet(self, base_ip_prefix: str = "127.0.0", start_host: int = 1, end_host: int = 2) -> List[DiscoveredNode]:
+    def scan_subnet(
+        self, base_ip_prefix: str = "127.0.0", start_host: int = 1, end_host: int = 2
+    ) -> list[DiscoveredNode]:
         """Concurrent multi-threaded subnet scan."""
-        discovered: List[DiscoveredNode] = []
+        discovered: list[DiscoveredNode] = []
         threads = []
 
         def check_host(ip: str):
@@ -156,7 +161,7 @@ class NetworkComputeScanner:
 
         return discovered
 
-    def listen_beacons(self, duration_seconds: float = 2.0, port: int = DEFAULT_BEACON_PORT) -> List[DiscoveredNode]:
+    def listen_beacons(self, duration_seconds: float = 2.0, port: int = DEFAULT_BEACON_PORT) -> list[DiscoveredNode]:
         """Listens for UDP broadcast beacons sent by local compute workers."""
         discovered = []
         seen = set()
@@ -184,7 +189,7 @@ class NetworkComputeScanner:
                         node = self.probe_node(sender_ip, service_port)
                         if node:
                             discovered.append(node)
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except Exception:
                 break
