@@ -1,0 +1,73 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for zGPU
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your feature request! Please describe the problem and your proposed solution.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which zGPU component would this feature affect?
+      multiple: true
+      options:
+        - RTL (SystemVerilog)
+        - ISA (Instruction Set / Assembler)
+        - Simulator (Microarchitecture)
+        - Kernels
+        - Neural Network Layers (nn/)
+        - LLM Engine (llm/)
+        - Rasterizer (Graphics Pipeline)
+        - Compiler (JIT Code Generator)
+        - Runtime (Host Driver API)
+        - Benchmarks
+        - Documentation
+        - New Component
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is it related to a frustration?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative approaches?
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low — Nice to have
+        - Medium — Important but not blocking
+        - High — Critical for my use case
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, diagrams, or references.

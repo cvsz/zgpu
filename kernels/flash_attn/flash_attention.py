@@ -3,10 +3,11 @@
 Tiles Q, K, V matrices inside the 64 KB 32-banked Shared Memory to eliminate
 intermediate DRAM write/read roundtrips for O(N^2) attention score matrices.
 """
+
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+
 from kernels.llm_kernels import LLMKernels
 from runtime.runtime import ZRuntime
 
@@ -14,7 +15,7 @@ from runtime.runtime import ZRuntime
 class FlashAttention3Kernel:
     """Hardware-accelerated FlashAttention-3 tiled kernel."""
 
-    def __init__(self, d_model: int = 16, block_size: int = 4, runtime: Optional[ZRuntime] = None):
+    def __init__(self, d_model: int = 16, block_size: int = 4, runtime: ZRuntime | None = None):
         self.d_model = d_model
         self.block_size = block_size
         self.runtime = runtime or ZRuntime()
@@ -22,11 +23,11 @@ class FlashAttention3Kernel:
 
     def forward(
         self,
-        Q: List[List[float]],
-        K: List[List[float]],
-        V: List[List[float]],
+        Q: list[list[float]],
+        K: list[list[float]],
+        V: list[list[float]],
         causal: bool = True,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """Compute Attention(Q, K, V) = softmax(Q K^T / sqrt(d)) V using online running softmax."""
         N = len(Q)
         d = self.d_model

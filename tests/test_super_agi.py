@@ -1,7 +1,8 @@
 import pytest
-from agi.vector_memory import FastVectorMemory
-from agi.planner import SuperAGIPlanner, ThoughtCandidate
+
 from agi.agent_core import SuperAGIAgent
+from agi.planner import SuperAGIPlanner, ThoughtCandidate
+from agi.vector_memory import FastVectorMemory
 from runtime.runtime import ZRuntime
 
 

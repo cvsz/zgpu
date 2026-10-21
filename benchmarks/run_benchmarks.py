@@ -2,11 +2,12 @@
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from isa.assembler import Assembler
 from simulator.gpu import ZGPU
-from simulator.sm import f32_to_bits, bits_to_f32
+from simulator.sm import bits_to_f32, f32_to_bits
 
 
 def benchmark_vector_add():
@@ -54,10 +55,10 @@ def benchmark_vector_add():
     # Pre-load register constants (R1=4, R10=4096, R11=8192) into warps during runtime
     def init_constants(sm):
         for w in sm.warps:
-            for l in range(32):
-                w.rf[l][1] = 4
-                w.rf[l][10] = base_b
-                w.rf[l][11] = base_c
+            for lane in range(32):
+                w.rf[lane][1] = 4
+                w.rf[lane][10] = base_b
+                w.rf[lane][11] = base_c
 
     # Launch kernel: 1024 threads = 32 warps (8 blocks of 4 warps)
     for sm in gpu.sms:
@@ -117,7 +118,7 @@ def benchmark_tensor_mma():
 
     # D = I * 2.0 + 0.5 = 2.5
     res = [bits_to_f32(warp.rf[i][10]) for i in range(16)]
-    print(f"Result Matrix Tile (4x4):")
+    print("Result Matrix Tile (4x4):")
     for r in range(4):
         row_str = " ".join(f"{res[r * 4 + c]:.2f}" for c in range(4))
         print(f"  [ {row_str} ]")

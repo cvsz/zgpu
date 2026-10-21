@@ -8,11 +8,12 @@ Contains:
 """
 
 from __future__ import annotations
+
 import math
-from typing import List
-from runtime.runtime import ZRuntime, DevicePointer
+
 from isa.assembler import Assembler
-from simulator.sm import f32_to_bits, bits_to_f32
+from runtime.runtime import ZRuntime
+from simulator.sm import bits_to_f32, f32_to_bits
 
 
 class LLMKernels:
@@ -21,7 +22,7 @@ class LLMKernels:
     def __init__(self, runtime: ZRuntime):
         self.rt = runtime
 
-    def matmul_tensor_4x4(self, a: List[float], b: List[float], c: List[float] | None = None) -> List[float]:
+    def matmul_tensor_4x4(self, a: list[float], b: list[float], c: list[float] | None = None) -> list[float]:
         """Hardware 4x4 Tensor Core MMA: Out = A @ B + C."""
         if c is None:
             c = [0.0] * 16
@@ -45,7 +46,7 @@ class LLMKernels:
 
         return [bits_to_f32(warp.rf[i][10]) for i in range(16)]
 
-    def gemm(self, A: List[List[float]], B: List[List[float]]) -> List[List[float]]:
+    def gemm(self, A: list[list[float]], B: list[list[float]]) -> list[list[float]]:
         """Arbitrary 2D Matrix Multiply tiled over 4x4 Tensor Cores."""
         M = len(A)
         K = len(A[0])
@@ -78,20 +79,20 @@ class LLMKernels:
         return out
 
     @staticmethod
-    def rms_norm(x: List[float], weight: List[float], eps: float = 1e-6) -> List[float]:
+    def rms_norm(x: list[float], weight: list[float], eps: float = 1e-6) -> list[float]:
         """Vectorized Root Mean Square Normalization (LLaMA style)."""
         dim = len(x)
         variance = sum(val * val for val in x) / dim
         inv_rms = 1.0 / math.sqrt(variance + eps)
-        return [val * inv_rms * w for val, w in zip(x, weight)]
+        return [val * inv_rms * w for val, w in zip(x, weight, strict=False)]
 
     @staticmethod
-    def silu(x: List[float]) -> List[float]:
+    def silu(x: list[float]) -> list[float]:
         """Swish / SiLU Activation: x * sigmoid(x)."""
         return [v / (1.0 + math.exp(-v)) for v in x]
 
     @staticmethod
-    def softmax(logits: List[float]) -> List[float]:
+    def softmax(logits: list[float]) -> list[float]:
         """Numerically stable softmax with online max subtraction."""
         max_val = max(logits)
         exp_vals = [math.exp(v - max_val) for v in logits]

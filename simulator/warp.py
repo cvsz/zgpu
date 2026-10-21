@@ -1,10 +1,8 @@
 """zGPU Warp Microarchitecture and SIMT Execution Model."""
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import List, Tuple
-from isa.instructions import Instruction, Opcode
 
+from dataclasses import dataclass
 
 WARP_SIZE = 32
 
@@ -23,9 +21,9 @@ class Warp:
         self.block_id = block_id
         self.pc = 0
         self.active_mask = 0xFFFFFFFF  # All 32 lanes active initially
-        self.divergence_stack: List[DivergenceStackEntry] = []
+        self.divergence_stack: list[DivergenceStackEntry] = []
         # Register file: 32 lanes x num_regs (32-bit registers)
-        self.rf: List[List[int]] = [[0] * num_regs for _ in range(WARP_SIZE)]
+        self.rf: list[list[int]] = [[0] * num_regs for _ in range(WARP_SIZE)]
         self.halted = False
         self.stalled = False
         self.cycles_executed = 0

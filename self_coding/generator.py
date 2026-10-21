@@ -3,12 +3,10 @@
 Generates vectorized zISA assembly and high-level Python kernel implementations
 from high-level specifications and algebraic mathematical ASTs.
 """
+
 from __future__ import annotations
 
-import ast
-import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
 
 from isa.assembler import Assembler
 
@@ -18,8 +16,8 @@ class GeneratedKernel:
     name: str
     target: str  # "zisa" or "python"
     source_code: str
-    bytecode: Optional[List[int]] = None
-    parameters: List[str] = None
+    bytecode: list[int] | None = None
+    parameters: list[str] = None
     description: str = ""
 
 
@@ -27,7 +25,7 @@ class SelfCodingEngine:
     """Autonomous Code Synthesis and Optimization Engine for zGPU."""
 
     def __init__(self):
-        self.generated_archive: Dict[str, GeneratedKernel] = {}
+        self.generated_archive: dict[str, GeneratedKernel] = {}
 
     def synthesize_vector_op(self, name: str, operation: str) -> GeneratedKernel:
         """Synthesize a hardware-vectorized zISA assembly kernel for elementwise operations."""

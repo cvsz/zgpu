@@ -1,7 +1,9 @@
 """zGPU Top-Level Multi-SM Hardware Prototype & Device Orchestrator."""
 
 from __future__ import annotations
-from typing import List, Dict, Any
+
+from typing import Any
+
 from simulator.memory import GlobalMemory
 from simulator.sm import StreamingMultiprocessor
 
@@ -15,7 +17,7 @@ class ZGPU:
         self.sms = [StreamingMultiprocessor(sm_id=i, global_mem=self.global_mem) for i in range(num_sms)]
         self.total_cycles = 0
 
-    def launch_kernel(self, program: List[int], grid_dim: int, block_dim_warps: int):
+    def launch_kernel(self, program: list[int], grid_dim: int, block_dim_warps: int):
         """Dispatch a grid of thread blocks across available SMs."""
         # Distribute blocks round-robin to SMs
         block_queue = list(range(grid_dim))
@@ -36,7 +38,7 @@ class ZGPU:
             if any_active:
                 self.total_cycles += 1
 
-    def get_performance_counters(self) -> Dict[str, Any]:
+    def get_performance_counters(self) -> dict[str, Any]:
         total_instructions = sum(sm.instructions_retired for sm in self.sms)
         total_conflicts = sum(sm.shared_mem.bank_conflicts for sm in self.sms)
         ipc = total_instructions / max(1, self.total_cycles)

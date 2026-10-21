@@ -1,10 +1,9 @@
 import json
 from unittest.mock import MagicMock
-import pytest
 
 from dashboard.server import DashboardBackend, DashboardHTTPHandler
-from self_coding.generator import SelfCodingEngine
 from self_coding.evaluator import KernelEvaluator
+from self_coding.generator import SelfCodingEngine
 
 
 def test_self_coding_engine():

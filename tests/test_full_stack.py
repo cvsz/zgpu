@@ -2,11 +2,12 @@
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from runtime.runtime import ZRuntime
-from rasterizer.rasterizer import Rasterizer, Framebuffer, Vertex
 from compiler.compiler import ZKernelCompiler
+from rasterizer.rasterizer import Framebuffer, Rasterizer, Vertex
+from runtime.runtime import ZRuntime
 
 
 def test_rasterizer_triangle_depth_and_color():
@@ -35,7 +36,7 @@ def test_zruntime_memory_and_kernel():
     data = [1.25, 2.5, 5.0, 10.0]
     rt.memcpy_h2d(ptr_a, data)
     readback = rt.memcpy_d2h(ptr_a, 4)
-    for original, read in zip(data, readback):
+    for original, read in zip(data, readback, strict=False):
         assert abs(original - read) < 1e-4
 
 
@@ -61,9 +62,10 @@ def test_ast_jit_compiler():
 
 
 def test_compiler_service_api():
-    from compiler.service import CompilerHTTPHandler
-    from unittest.mock import MagicMock
     import json
+    from unittest.mock import MagicMock
+
+    from compiler.service import CompilerHTTPHandler
 
     handler = CompilerHTTPHandler.__new__(CompilerHTTPHandler)
     handler.send_response = MagicMock()

@@ -1,7 +1,9 @@
 """SuperAGI Autonomous Agent Latency & Throughput Benchmark on zGPU."""
+
 from __future__ import annotations
 
 import time
+
 from agi.agent_core import SuperAGIAgent
 from runtime.runtime import ZRuntime
 

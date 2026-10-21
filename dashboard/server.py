@@ -8,23 +8,23 @@ Provides a live web interface for:
 - SuperAGI autonomous agent execution monitor.
 - Network Compute Discovery & CPU/GPU powerup cluster manager.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import os
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, List
-from urllib.parse import parse_qs, urlparse
+from typing import Any
+from urllib.parse import urlparse
 
 from agi.agent_core import SuperAGIAgent
 from agi.swarm import SuperAGISwarm
 from cluster.discovery.scanner import NetworkComputeScanner
 from cluster.network_pool import NetworkCPUPool
 from kernels.flash_attn.flash_attention import FlashAttention3Kernel
-from llm.transformer import LLMConfig, ZGPULLM
+from llm.transformer import ZGPULLM, LLMConfig
 from runtime.runtime import ZRuntime
 from self_coding.evaluator import KernelEvaluator
 from self_coding.generator import SelfCodingEngine
@@ -51,7 +51,7 @@ class DashboardBackend:
         for i in range(16):
             self.agent.memory.add(f"init_context_{i}", [0.1 * ((i + j) % 7 - 3) for j in range(16)])
 
-    def get_system_telemetry(self) -> Dict[str, Any]:
+    def get_system_telemetry(self) -> dict[str, Any]:
         sm = self.runtime.device.sms[0]
         mem = self.runtime.device.global_mem
         return {
@@ -89,11 +89,11 @@ class DashboardBackend:
             },
         }
 
-    def generate_llm(self, prompt: str, max_tokens: int = 16) -> Dict[str, Any]:
+    def generate_llm(self, prompt: str, max_tokens: int = 16) -> dict[str, Any]:
         t0 = time.perf_counter()
         token_ids = [ord(c) % self.llm.config.vocab_size for c in prompt] or [1]
         out_tokens = self.llm.generate(token_ids, max_new_tokens=max_tokens)
-        new_tokens = out_tokens[len(token_ids):]
+        new_tokens = out_tokens[len(token_ids) :]
         text_out = "".join(chr(32 + (t % 95)) for t in new_tokens)
         latency_ms = (time.perf_counter() - t0) * 1000.0
         return {
@@ -104,7 +104,7 @@ class DashboardBackend:
             "throughput_tps": round(len(new_tokens) / max(0.001, latency_ms / 1000.0), 2),
         }
 
-    def trigger_self_coding(self, op_name: str, op_type: str) -> Dict[str, Any]:
+    def trigger_self_coding(self, op_name: str, op_type: str) -> dict[str, Any]:
         kernel = self.self_coder.synthesize_vector_op(op_name, op_type)
         eval_rep = self.evaluator.evaluate_kernel(kernel, num_warps=1)
         return {
@@ -117,7 +117,7 @@ class DashboardBackend:
             "error": eval_rep.error_message,
         }
 
-    def trigger_agi_step(self, goal: str) -> Dict[str, Any]:
+    def trigger_agi_step(self, goal: str) -> dict[str, Any]:
         res = self.agent.step(goal)
         return {
             "step_num": res.step_num,
@@ -128,7 +128,7 @@ class DashboardBackend:
             "latency_ms": round(res.latency_ms, 2),
         }
 
-    def trigger_network_scan(self, subnet_prefix: str = "127.0.0", start: int = 1, end: int = 2) -> Dict[str, Any]:
+    def trigger_network_scan(self, subnet_prefix: str = "127.0.0", start: int = 1, end: int = 2) -> dict[str, Any]:
         discovered = self.scanner.scan_subnet(base_ip_prefix=subnet_prefix, start_host=start, end_host=end)
         for node in discovered:
             self.network_pool.register_node(f"{node.node_type}_{node.ip}_{node.port}", node.url)
@@ -140,7 +140,7 @@ class DashboardBackend:
             ],
         }
 
-    def trigger_hybrid_gemm(self, size: int = 16, gpu_fraction: float = 0.5) -> Dict[str, Any]:
+    def trigger_hybrid_gemm(self, size: int = 16, gpu_fraction: float = 0.5) -> dict[str, Any]:
         A = [[1.0 for _ in range(size)] for _ in range(size)]
         B = [[2.0 for _ in range(size)] for _ in range(size)]
         t0 = time.perf_counter()

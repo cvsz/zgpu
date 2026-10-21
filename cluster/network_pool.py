@@ -4,6 +4,7 @@ Aggregates multiple remote CPU compute nodes over the network.
 Partitions compute workloads between local zGPU Tensor Cores and remote network CPUs
 to achieve maximum aggregated throughput ("powerup" burst mode).
 """
+
 from __future__ import annotations
 
 import json
@@ -11,7 +12,6 @@ import logging
 import time
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
 
 from kernels.llm_kernels import LLMKernels
 from runtime.runtime import ZRuntime
@@ -30,10 +30,10 @@ class NetworkNode:
 class NetworkCPUPool:
     """Manages a fleet of network CPU workers to augment local zGPU compute capacity."""
 
-    def __init__(self, runtime: Optional[ZRuntime] = None):
+    def __init__(self, runtime: ZRuntime | None = None):
         self.runtime = runtime or ZRuntime()
         self.kernels = LLMKernels(self.runtime)
-        self.nodes: Dict[str, NetworkNode] = {}
+        self.nodes: dict[str, NetworkNode] = {}
 
     def register_node(self, node_id: str, url: str):
         """Add a network CPU worker endpoint (e.g. http://192.168.1.100:9200)."""
@@ -42,12 +42,14 @@ class NetworkCPUPool:
     def remove_node(self, node_id: str):
         self.nodes.pop(node_id, None)
 
-    def ping_nodes(self) -> Dict[str, bool]:
+    def ping_nodes(self) -> dict[str, bool]:
         """Verify reachability of all registered network CPU workers."""
         status = {}
         for nid, node in list(self.nodes.items()):
             try:
-                req_data = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "worker.ping", "params": {}}).encode("utf-8")
+                req_data = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "worker.ping", "params": {}}).encode(
+                    "utf-8"
+                )
                 req = urllib.request.Request(node.url, data=req_data, headers={"Content-Type": "application/json"})
                 t0 = time.perf_counter()
                 with urllib.request.urlopen(req, timeout=2.0) as resp:
@@ -55,23 +57,20 @@ class NetworkCPUPool:
                     node.latency_ms = (time.perf_counter() - t0) * 1000.0
                     node.active = "result" in res
                     status[nid] = True
-            except Exception as e:
+            except Exception:
                 node.active = False
                 status[nid] = False
         return status
 
-    def dispatch_remote_gemm(self, node_id: str, A_chunk: List[List[float]], B: List[List[float]]) -> List[List[float]]:
+    def dispatch_remote_gemm(self, node_id: str, A_chunk: list[list[float]], B: list[list[float]]) -> list[list[float]]:
         """Dispatch a matrix multiplication chunk to a specific network CPU worker."""
         node = self.nodes.get(node_id)
         if not node or not node.active:
             raise RuntimeError(f"Node {node_id} is inactive or unreachable")
 
-        req_data = json.dumps({
-            "jsonrpc": "2.0",
-            "id": 10,
-            "method": "compute.gemm",
-            "params": {"A": A_chunk, "B": B}
-        }).encode("utf-8")
+        req_data = json.dumps(
+            {"jsonrpc": "2.0", "id": 10, "method": "compute.gemm", "params": {"A": A_chunk, "B": B}}
+        ).encode("utf-8")
 
         req = urllib.request.Request(node.url, data=req_data, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=10.0) as resp:
@@ -80,10 +79,10 @@ class NetworkCPUPool:
 
     def hybrid_gemm_powerup(
         self,
-        A: List[List[float]],
-        B: List[List[float]],
+        A: list[list[float]],
+        B: list[list[float]],
         gpu_fraction: float = 0.5,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """Hybrid heterogeneous parallel GEMM:
         Splits rows of A between local zGPU Tensor Cores and network CPU workers,
         merging the final output matrix seamlessly.
@@ -125,10 +124,10 @@ class NetworkCPUPool:
         # 3. Concatenate row outputs
         return gpu_out + cpu_out
 
-
     def auto_discover_and_powerup(self, subnet_prefix: str = "127.0.0", start_host: int = 1, end_host: int = 2) -> int:
         """Scan local subnet and automatically register all discovered GPU and CPU nodes."""
         from cluster.discovery.scanner import NetworkComputeScanner
+
         scanner = NetworkComputeScanner()
         discovered = scanner.scan_subnet(base_ip_prefix=subnet_prefix, start_host=start_host, end_host=end_host)
         for node in discovered:

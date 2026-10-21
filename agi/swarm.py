@@ -3,11 +3,13 @@
 Enables distributed swarms of autonomous agents (Planner, Coder, Reviewer, Verifier)
 to collaborate over a shared associative vector memory and peer-to-peer message crossbar.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
-from agi.agent_core import SuperAGIAgent, AgentStepResult
+from typing import Any
+
+from agi.agent_core import SuperAGIAgent
 from agi.vector_memory import FastVectorMemory
 from runtime.runtime import ZRuntime
 
@@ -17,17 +19,17 @@ class SwarmMessage:
     sender: str
     recipient: str
     content: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class SuperAGISwarm:
     """Collaborative multi-agent swarm running on zGPU."""
 
-    def __init__(self, shared_memory_dim: int = 16, runtime: Optional[ZRuntime] = None):
+    def __init__(self, shared_memory_dim: int = 16, runtime: ZRuntime | None = None):
         self.runtime = runtime or ZRuntime()
         self.shared_memory = FastVectorMemory(dim=shared_memory_dim, runtime=self.runtime)
-        self.agents: Dict[str, SuperAGIAgent] = {}
-        self.message_bus: List[SwarmMessage] = []
+        self.agents: dict[str, SuperAGIAgent] = {}
+        self.message_bus: list[SwarmMessage] = []
 
     def spawn_agent(self, role_name: str) -> SuperAGIAgent:
         """Create a specialized role agent connected to the swarm."""
@@ -41,7 +43,7 @@ class SuperAGISwarm:
         msg = SwarmMessage(sender=sender, recipient="all", content=content)
         self.message_bus.append(msg)
 
-    def execute_swarm_task(self, task_description: str) -> Dict[str, Any]:
+    def execute_swarm_task(self, task_description: str) -> dict[str, Any]:
         """Execute a coordinated multi-agent workflow: Planner -> Coder -> Verifier."""
         if not self.agents:
             self.spawn_agent("Planner")

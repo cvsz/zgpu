@@ -1,9 +1,7 @@
 import json
 from unittest.mock import MagicMock, patch
-import pytest
 
 from cluster.discovery.scanner import (
-    ClusterBeaconBroadcaster,
     DiscoveredNode,
     NetworkComputeScanner,
 )

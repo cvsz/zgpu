@@ -3,21 +3,21 @@
 Provides high-performance symmetric and asymmetric tensor quantization to maximize
 memory bandwidth efficiency and compute density on zGPU hardware.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple
 
 
 @dataclass
 class QuantizedTensor:
-    q_data: List[int]
+    q_data: list[int]
     scale: float
     zero_point: int
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     bits: int = 8
 
-    def dequantize(self) -> List[float]:
+    def dequantize(self) -> list[float]:
         """Convert quantized integers back to FP32."""
         return [(val - self.zero_point) * self.scale for val in self.q_data]
 
@@ -26,7 +26,7 @@ class Quantizer:
     """Hardware-friendly INT8 / INT4 Quantization routines."""
 
     @staticmethod
-    def quantize_int8_symmetric(data: List[float], shape: Tuple[int, ...]) -> QuantizedTensor:
+    def quantize_int8_symmetric(data: list[float], shape: tuple[int, ...]) -> QuantizedTensor:
         """Quantize FP32 to signed 8-bit integers [-127, 127] with zero_point = 0."""
         max_abs = max(abs(x) for x in data) if data else 1e-8
         scale = max_abs / 127.0 if max_abs > 0 else 1.0
@@ -40,7 +40,7 @@ class Quantizer:
         return QuantizedTensor(q_data=q_data, scale=scale, zero_point=0, shape=shape, bits=8)
 
     @staticmethod
-    def quantize_int4_symmetric(data: List[float], shape: Tuple[int, ...]) -> QuantizedTensor:
+    def quantize_int4_symmetric(data: list[float], shape: tuple[int, ...]) -> QuantizedTensor:
         """Quantize FP32 to signed 4-bit integers [-7, 7] with zero_point = 0."""
         max_abs = max(abs(x) for x in data) if data else 1e-8
         scale = max_abs / 7.0 if max_abs > 0 else 1.0
@@ -54,7 +54,7 @@ class Quantizer:
         return QuantizedTensor(q_data=q_data, scale=scale, zero_point=0, shape=shape, bits=4)
 
     @staticmethod
-    def pack_int4(int4_vals: List[int]) -> List[int]:
+    def pack_int4(int4_vals: list[int]) -> list[int]:
         """Pack two 4-bit signed integers into a single 8-bit byte."""
         packed = []
         for i in range(0, len(int4_vals), 2):
@@ -64,7 +64,7 @@ class Quantizer:
         return packed
 
     @staticmethod
-    def unpack_int4(packed: List[int], target_len: int) -> List[int]:
+    def unpack_int4(packed: list[int], target_len: int) -> list[int]:
         """Unpack 8-bit bytes into 4-bit signed integers."""
         unpacked = []
         for byte in packed:

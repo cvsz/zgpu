@@ -3,11 +3,11 @@
 Implements Multi-Head Self Attention, SwiGLU Feed-Forward Networks, and RMSNorm
 layers utilizing zGPU Tensor Cores and SIMT vector execution.
 """
+
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 from kernels.llm_kernels import LLMKernels
 from nn.linear import Linear
@@ -17,9 +17,9 @@ from runtime.runtime import ZRuntime
 @dataclass
 class LLMConfig:
     vocab_size: int = 64
-    d_model: int = 16          # Multiple of 4 for zGPU Tensor Core tiling
+    d_model: int = 16  # Multiple of 4 for zGPU Tensor Core tiling
     num_heads: int = 2
-    d_ff: int = 32             # Multiple of 4
+    d_ff: int = 32  # Multiple of 4
     num_layers: int = 2
     max_seq_len: int = 32
     eps: float = 1e-5
@@ -39,7 +39,7 @@ class Attention:
         self.v_proj = Linear(config.d_model, config.d_model, bias=False, runtime=runtime)
         self.out_proj = Linear(config.d_model, config.d_model, bias=False, runtime=runtime)
 
-    def forward(self, x: List[List[float]], mask: Optional[List[List[float]]] = None) -> List[List[float]]:
+    def forward(self, x: list[list[float]], mask: list[list[float]] | None = None) -> list[list[float]]:
         # Q, K, V projections via zGPU GEMM
         q = self.q_proj(x)
         k = self.k_proj(x)
@@ -87,15 +87,15 @@ class FeedForward:
         self.w2 = Linear(config.d_ff, config.d_model, bias=False, runtime=runtime)
         self.w3 = Linear(config.d_model, config.d_ff, bias=False, runtime=runtime)
 
-    def forward(self, x: List[List[float]]) -> List[List[float]]:
+    def forward(self, x: list[list[float]]) -> list[list[float]]:
         gate = self.w1(x)
         val = self.w3(x)
 
         # SwiGLU: SiLU(gate) * val
         act = []
-        for g_row, v_row in zip(gate, val):
+        for g_row, v_row in zip(gate, val, strict=False):
             silu_g = self.kernels.silu(g_row)
-            act.append([sg * vr for sg, vr in zip(silu_g, v_row)])
+            act.append([sg * vr for sg, vr in zip(silu_g, v_row, strict=False)])
 
         return self.w2(act)
 
@@ -110,16 +110,18 @@ class TransformerBlock:
         self.norm1_w = [1.0] * config.d_model
         self.norm2_w = [1.0] * config.d_model
 
-    def forward(self, x: List[List[float]], mask: Optional[List[List[float]]] = None) -> List[List[float]]:
+    def forward(self, x: list[list[float]], mask: list[list[float]] | None = None) -> list[list[float]]:
         # Pre-LN RMSNorm + Attention + Residual
         normed_1 = [LLMKernels.rms_norm(row, self.norm1_w, self.config.eps) for row in x]
         attn_out = self.attn.forward(normed_1, mask)
-        x1 = [[a + b for a, b in zip(r_orig, r_attn)] for r_orig, r_attn in zip(x, attn_out)]
+        x1 = [
+            [a + b for a, b in zip(r_orig, r_attn, strict=False)] for r_orig, r_attn in zip(x, attn_out, strict=False)
+        ]
 
         # Pre-LN RMSNorm + FFN + Residual
         normed_2 = [LLMKernels.rms_norm(row, self.norm2_w, self.config.eps) for row in x1]
         ffn_out = self.ffn.forward(normed_2)
-        x2 = [[a + b for a, b in zip(r_x1, r_ffn)] for r_x1, r_ffn in zip(x1, ffn_out)]
+        x2 = [[a + b for a, b in zip(r_x1, r_ffn, strict=False)] for r_x1, r_ffn in zip(x1, ffn_out, strict=False)]
 
         return x2
 
@@ -127,22 +129,21 @@ class TransformerBlock:
 class ZGPULLM:
     """Full LLM Model Engine running on zGPU."""
 
-    def __init__(self, config: Optional[LLMConfig] = None, runtime: Optional[ZRuntime] = None):
+    def __init__(self, config: LLMConfig | None = None, runtime: ZRuntime | None = None):
         self.config = config or LLMConfig()
         self.runtime = runtime or ZRuntime()
         self.kernels = LLMKernels(self.runtime)
 
         # Embedding weights
         self.token_embeddings = [
-            [0.05 * ((i * 3 + j) % 11 - 5) for j in range(self.config.d_model)]
-            for i in range(self.config.vocab_size)
+            [0.05 * ((i * 3 + j) % 11 - 5) for j in range(self.config.d_model)] for i in range(self.config.vocab_size)
         ]
 
         self.blocks = [TransformerBlock(self.config, self.runtime) for _ in range(self.config.num_layers)]
         self.final_norm_w = [1.0] * self.config.d_model
         self.head = Linear(self.config.d_model, self.config.vocab_size, bias=False, runtime=self.runtime)
 
-    def forward(self, token_ids: List[int]) -> List[List[float]]:
+    def forward(self, token_ids: list[int]) -> list[list[float]]:
         """Forward pass for token IDs returning next-token logits."""
         seq_len = len(token_ids)
         # Embed tokens
@@ -162,7 +163,7 @@ class ZGPULLM:
         logits = self.head(normed)
         return logits
 
-    def generate(self, token_ids: List[int], max_new_tokens: int = 5) -> List[int]:
+    def generate(self, token_ids: list[int], max_new_tokens: int = 5) -> list[int]:
         """Autoregressive generation on zGPU."""
         curr_tokens = list(token_ids)
         for _ in range(max_new_tokens):

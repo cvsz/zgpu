@@ -3,16 +3,18 @@
 Provides a zero-copy, hardware-mapped Tensor class with __zgpu_array_interface__
 and memory-mapped weight ingestion.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple, Union
-from runtime.runtime import DevicePointer, ZRuntime
+from typing import Any
+
+from runtime.runtime import ZRuntime
 
 
 class ZTensor:
     """Tensor representation backed by zGPU global device memory."""
 
-    def __init__(self, data: List[float], shape: Tuple[int, ...], runtime: Optional[ZRuntime] = None):
+    def __init__(self, data: list[float], shape: tuple[int, ...], runtime: ZRuntime | None = None):
         self.shape = shape
         self.runtime = runtime or ZRuntime()
         self.numel = 1
@@ -28,7 +30,7 @@ class ZTensor:
         self.runtime.memcpy_h2d(self.device_ptr, [float(x) for x in data])
 
     @property
-    def __zgpu_array_interface__(self) -> Dict[str, Any]:
+    def __zgpu_array_interface__(self) -> dict[str, Any]:
         """Array interface dictionary for zero-copy device interop."""
         return {
             "shape": self.shape,
@@ -37,11 +39,11 @@ class ZTensor:
             "version": 1,
         }
 
-    def to_list(self) -> List[float]:
+    def to_list(self) -> list[float]:
         """Read data back from zGPU device memory to Python float list."""
         return self.runtime.memcpy_d2h(self.device_ptr, self.numel)
 
-    def reshape(self, new_shape: Tuple[int, ...]) -> ZTensor:
+    def reshape(self, new_shape: tuple[int, ...]) -> ZTensor:
         new_numel = 1
         for dim in new_shape:
             new_numel *= dim

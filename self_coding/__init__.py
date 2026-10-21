@@ -1,5 +1,6 @@
 """zGPU Autonomous Self-Coding & Program Synthesis Engine."""
-from self_coding.generator import SelfCodingEngine, GeneratedKernel
-from self_coding.evaluator import KernelEvaluator, EvaluationReport
 
-__all__ = ["SelfCodingEngine", "GeneratedKernel", "KernelEvaluator", "EvaluationReport"]
+from self_coding.evaluator import EvaluationReport, KernelEvaluator
+from self_coding.generator import GeneratedKernel, SelfCodingEngine
+
+__all__ = ["EvaluationReport", "GeneratedKernel", "KernelEvaluator", "SelfCodingEngine"]

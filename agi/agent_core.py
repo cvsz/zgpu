@@ -3,16 +3,18 @@
 Combines zGPU-accelerated LLM reasoning, fast vector memory, Tree-of-Thought planning,
 and extensible tool calling into an ultra-fast hardware-accelerated autonomous agent.
 """
+
 from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 from agi.planner import SuperAGIPlanner, ThoughtCandidate
 from agi.vector_memory import FastVectorMemory
-from llm.transformer import LLMConfig, ZGPULLM
+from llm.transformer import ZGPULLM, LLMConfig
 from runtime.runtime import ZRuntime
 
 log = logging.getLogger("SuperAGI-zGPU")
@@ -35,15 +37,15 @@ class SuperAGIAgent:
         self,
         agent_name: str = "zGPU-AGI-Alpha",
         d_model: int = 16,
-        runtime: Optional[ZRuntime] = None,
+        runtime: ZRuntime | None = None,
     ):
         self.name = agent_name
         self.runtime = runtime or ZRuntime()
         self.llm = ZGPULLM(config=LLMConfig(d_model=d_model, num_layers=2), runtime=self.runtime)
         self.memory = FastVectorMemory(dim=d_model, runtime=self.runtime)
         self.planner = SuperAGIPlanner(feature_dim=d_model, runtime=self.runtime)
-        self.tools: Dict[str, Callable[[str], Any]] = {}
-        self.execution_history: List[AgentStepResult] = []
+        self.tools: dict[str, Callable[[str], Any]] = {}
+        self.execution_history: list[AgentStepResult] = []
 
         # Register standard built-in tools
         self._register_default_tools()
@@ -64,11 +66,13 @@ class SuperAGIAgent:
             # Synthesize feature vector for candidate path
             feature_vec = [0.1 * ((i * 5 + j) % 9 - 4) for j in range(self.planner.feature_dim)]
             tool_name = list(self.tools.keys())[i % len(self.tools)]
-            candidates.append(ThoughtCandidate(
-                thought_id=f"path_{i}",
-                action=f"{tool_name}:{goal}",
-                feature_vector=feature_vec,
-            ))
+            candidates.append(
+                ThoughtCandidate(
+                    thought_id=f"path_{i}",
+                    action=f"{tool_name}:{goal}",
+                    feature_vector=feature_vec,
+                )
+            )
 
         best_thought = self.planner.select_best_path(candidates)
         return best_thought
@@ -78,10 +82,10 @@ class SuperAGIAgent:
         t0 = time.perf_counter()
 
         # 1. Search vector memory for relevant context
-        query_vec = [0.05 * (ord(c) % 7) for c in goal[:self.memory.dim]]
+        query_vec = [0.05 * (ord(c) % 7) for c in goal[: self.memory.dim]]
         if len(query_vec) < self.memory.dim:
             query_vec.extend([0.0] * (self.memory.dim - len(query_vec)))
-        mem_hits = self.memory.search(query_vec, top_k=2)
+        self.memory.search(query_vec, top_k=2)
 
         # 2. Plan next action using zGPU hardware evaluator
         best_candidate = self.reason_and_plan(goal)
@@ -110,7 +114,7 @@ class SuperAGIAgent:
         self.execution_history.append(result)
         return result
 
-    def run_goal(self, goal: str, max_steps: int = 3) -> List[AgentStepResult]:
+    def run_goal(self, goal: str, max_steps: int = 3) -> list[AgentStepResult]:
         """Run an autonomous multi-step execution loop towards a goal."""
         results = []
         for _ in range(max_steps):

@@ -1,7 +1,9 @@
 """Heterogeneous zGPU + Network CPU Powerup Benchmark."""
+
 from __future__ import annotations
 
 import time
+
 from cluster.network_pool import NetworkCPUPool
 from cluster.worker.cpu_worker import CPUComputeEngine
 from runtime.runtime import ZRuntime
@@ -22,14 +24,14 @@ def run_powerup_benchmark():
 
     # 1. Local zGPU Baseline
     t0 = time.perf_counter()
-    zgpu_res = pool.kernels.gemm(A, B)
+    pool.kernels.gemm(A, B)
     t_zgpu = (time.perf_counter() - t0) * 1000.0
 
     print(f"• Baseline Pure zGPU (32x32 GEMM): {t_zgpu:.2f} ms")
 
     # 2. Local CPU Engine Chunk
     t0 = time.perf_counter()
-    cpu_res = CPUComputeEngine.gemm_chunk(A[:16], B)
+    CPUComputeEngine.gemm_chunk(A[:16], B)
     t_cpu = (time.perf_counter() - t0) * 1000.0
 
     print(f"• Local CPU Worker Chunk (16x32 GEMM): {t_cpu:.2f} ms")

@@ -3,6 +3,7 @@
 Exposes a JSON-RPC 2.0 interface on standard HTTP that serves LLM generation
 requests using zGPU Tensor Core and SIMT acceleration.
 """
+
 from __future__ import annotations
 
 import json
@@ -10,9 +11,9 @@ import logging
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict
+from typing import Any
 
-from llm.transformer import LLMConfig, ZGPULLM
+from llm.transformer import ZGPULLM, LLMConfig
 from runtime.runtime import ZRuntime
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -48,14 +49,14 @@ class ZGPUModelService:
             chars.append(c)
         return "".join(chars)
 
-    def generate(self, prompt: str, max_tokens: int = 16) -> Dict[str, Any]:
+    def generate(self, prompt: str, max_tokens: int = 16) -> dict[str, Any]:
         t0 = time.perf_counter()
         token_ids = self.simple_tokenize(prompt)
         if not token_ids:
             token_ids = [1]
 
         out_tokens = self.model.generate(token_ids, max_new_tokens=max_tokens)
-        new_tokens = out_tokens[len(token_ids):]
+        new_tokens = out_tokens[len(token_ids) :]
         text_out = self.simple_detokenize(new_tokens)
         latency_ms = (time.perf_counter() - t0) * 1000.0
 
