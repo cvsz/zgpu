@@ -1,7 +1,7 @@
-"""High-Performance zGPU LLM JSON-RPC Server.
+"""High-Performance zGPU LLM JSON-RPC Server with Multi-Model Support.
 
 Exposes a JSON-RPC 2.0 interface on standard HTTP that serves LLM generation
-requests using zGPU Tensor Core and SIMT acceleration.
+requests using zGPU Tensor Core and SIMT acceleration across multiple registered models.
 """
 
 from __future__ import annotations
@@ -9,73 +9,22 @@ from __future__ import annotations
 import json
 import logging
 import sys
-import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
-from llm.transformer import ZGPULLM, LLMConfig
-from runtime.runtime import ZRuntime
+from llm.model_registry import ModelRegistry
+from llm.transformer import LLMConfig
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("zGPU-Server")
 
-
-class ZGPUModelService:
-    """Manages the zGPU device context and loaded LLM model."""
-
-    def __init__(self, d_model: int = 16, num_layers: int = 2):
-        self.runtime = ZRuntime()
-        self.config = LLMConfig(
-            vocab_size=128,
-            d_model=d_model,
-            num_heads=2,
-            d_ff=32,
-            num_layers=num_layers,
-            max_seq_len=64,
-        )
-        log.info("Initializing zGPU LLM model (d_model=%d, layers=%d)...", d_model, num_layers)
-        self.model = ZGPULLM(config=self.config, runtime=self.runtime)
-
-    def simple_tokenize(self, text: str) -> list[int]:
-        """Convert ASCII text to token IDs mod vocab_size."""
-        return [ord(c) % self.config.vocab_size for c in text]
-
-    def simple_detokenize(self, tokens: list[int]) -> str:
-        """Map generated token IDs back to readable characters."""
-        chars = []
-        for t in tokens:
-            # Printable ascii range 32-126
-            c = chr(32 + (t % 95))
-            chars.append(c)
-        return "".join(chars)
-
-    def generate(self, prompt: str, max_tokens: int = 16) -> dict[str, Any]:
-        t0 = time.perf_counter()
-        token_ids = self.simple_tokenize(prompt)
-        if not token_ids:
-            token_ids = [1]
-
-        out_tokens = self.model.generate(token_ids, max_new_tokens=max_tokens)
-        new_tokens = out_tokens[len(token_ids) :]
-        text_out = self.simple_detokenize(new_tokens)
-        latency_ms = (time.perf_counter() - t0) * 1000.0
-
-        return {
-            "text": text_out,
-            "tokens_used": len(out_tokens),
-            "latency_ms": latency_ms,
-            "model": "zGPU-Tensor-LLM-16d",
-            "finish_reason": "length" if len(new_tokens) >= max_tokens else "stop",
-        }
-
-
-# Global singleton instance
-service = ZGPUModelService()
+# Global Model Registry managing multiple models
+registry = ModelRegistry()
 
 
 class JSONRPCHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        """Respond with health status or usage info on GET requests."""
+        """Respond with health status, models list, or endpoints on GET requests."""
         if self.path in ("/", "/rpc", "/health"):
             data = {
                 "jsonrpc": "2.0",
@@ -84,17 +33,24 @@ class JSONRPCHandler(BaseHTTPRequestHandler):
                     "engine": "zGPU-Silicon-SIMT-TensorCore",
                     "device": "zGPU-SM-0",
                     "status": "ready",
+                    "available_models": [m["name"] for m in registry.list_models()],
                     "endpoints": {
-                        "POST /rpc": "JSON-RPC 2.0 API (methods: system.health, llm.generate)",
+                        "GET /models": "List available models and configuration",
+                        "POST /rpc": "JSON-RPC 2.0 API (methods: system.health, llm.models, llm.add_model, llm.generate)",
                     },
                 },
             }
-            body = json.dumps(data, indent=2).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._send_json(data)
+
+        elif self.path in ("models", "/models", "/api/models"):
+            data = {
+                "jsonrpc": "2.0",
+                "result": {
+                    "models": registry.list_models(),
+                },
+            }
+            self._send_json(data)
+
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -114,13 +70,56 @@ class JSONRPCHandler(BaseHTTPRequestHandler):
                     "engine": "zGPU-Silicon-SIMT-TensorCore",
                     "device": "zGPU-SM-0",
                     "status": "ready",
+                    "models": [m["name"] for m in registry.list_models()],
+                }
+                resp_payload = {"jsonrpc": "2.0", "id": req_id, "result": result}
+
+            elif method in ("llm.models", "models.list"):
+                result = {"models": registry.list_models()}
+                resp_payload = {"jsonrpc": "2.0", "id": req_id, "result": result}
+
+            elif method in ("llm.add_model", "models.add"):
+                model_name = params.get("name")
+                if not model_name:
+                    raise ValueError("Parameter 'name' is required")
+                d_model = int(params.get("d_model", 16))
+                if d_model % 4 != 0:
+                    raise ValueError("d_model must be a multiple of 4 for zGPU Tensor Core tiling")
+                num_layers = int(params.get("num_layers", 2))
+                num_heads = int(params.get("num_heads", 2))
+                d_ff = int(params.get("d_ff", d_model * 2))
+                vocab_size = int(params.get("vocab_size", 128))
+                max_seq_len = int(params.get("max_seq_len", 64))
+                desc = params.get("description", f"Custom model {model_name}")
+                tags = params.get("tags", ["custom"])
+
+                cfg = LLMConfig(
+                    vocab_size=vocab_size,
+                    d_model=d_model,
+                    num_heads=num_heads,
+                    d_ff=d_ff,
+                    num_layers=num_layers,
+                    max_seq_len=max_seq_len,
+                )
+                registry.register_model(name=model_name, config=cfg, description=desc, tags=tags)
+                result = {
+                    "success": True,
+                    "message": f"Model '{model_name}' successfully added to zGPU registry",
+                    "model": model_name,
+                    "config": {
+                        "d_model": d_model,
+                        "num_layers": num_layers,
+                        "num_heads": num_heads,
+                        "vocab_size": vocab_size,
+                    },
                 }
                 resp_payload = {"jsonrpc": "2.0", "id": req_id, "result": result}
 
             elif method == "llm.generate":
                 prompt = params.get("prompt", "")
+                model_name = params.get("model")
                 max_tokens = int(params.get("max_tokens", 16))
-                result = service.generate(prompt=prompt, max_tokens=max_tokens)
+                result = registry.generate(prompt=prompt, model_name=model_name, max_tokens=max_tokens)
                 resp_payload = {"jsonrpc": "2.0", "id": req_id, "result": result}
 
             else:
@@ -138,12 +137,15 @@ class JSONRPCHandler(BaseHTTPRequestHandler):
                 "error": {"code": -32603, "message": str(e)},
             }
 
-        response_bytes = json.dumps(resp_payload).encode("utf-8")
-        self.send_response(200)
+        self._send_json(resp_payload)
+
+    def _send_json(self, data: Any, status: int = 200):
+        body = json.dumps(data, indent=2).encode("utf-8")
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(response_bytes)))
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(response_bytes)
+        self.wfile.write(body)
 
     def log_message(self, format, *args):
         # Override to suppress default noisy console logs
