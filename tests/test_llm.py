@@ -113,3 +113,14 @@ def test_kv_cache():
     all_k2, _all_v2 = cache.update(0, k1, v1)
     assert len(all_k2) == 2
     assert all_k2[1] == k1
+
+
+def test_thai_multilingual_tokenizer():
+    from llm.thai_tokenizer import ThaiMultilingualTokenizer
+
+    tok = ThaiMultilingualTokenizer(vocab_size=256)
+    text = "สวัสดี zGPU ภาษาไทย"
+    ids = tok.encode(text)
+    assert len(ids) > 0
+    decoded = tok.decode(ids)
+    assert decoded == text

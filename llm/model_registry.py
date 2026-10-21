@@ -1,7 +1,7 @@
 """zGPU Model Registry & Multi-Model Service Engine.
 
 Supports multiple named LLM model architectures, parameter scaling,
-and dynamic weight loading on top of the zGPU SIMT Tensor Core execution stack.
+Thai language Unicode tokenization, and dynamic weight loading on top of the zGPU SIMT Tensor Core execution stack.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from llm.thai_tokenizer import ThaiMultilingualTokenizer
 from llm.transformer import ZGPULLM, LLMConfig
 from runtime.runtime import ZRuntime
 
@@ -27,6 +28,12 @@ class ModelProfile:
 
 # Predefined zGPU Silicon Model Architectures
 DEFAULT_PROFILES: dict[str, ModelProfile] = {
+    "zgpu-thai": ModelProfile(
+        name="zgpu-thai",
+        description="Thai & Multilingual Transformer Decoder (ภาษาไทย 256-vocab, 16-dim, 2 layers)",
+        config=LLMConfig(vocab_size=256, d_model=16, num_heads=2, d_ff=32, num_layers=2, max_seq_len=64),
+        tags=["thai", "multilingual", "ภาษาไทย"],
+    ),
     "zgpu-nano": ModelProfile(
         name="zgpu-nano",
         description="Ultra-lightweight edge inference model (8-dim, 1 layer)",
@@ -61,10 +68,18 @@ class ModelRegistry:
         self.runtime = runtime or ZRuntime()
         self.profiles: dict[str, ModelProfile] = dict(DEFAULT_PROFILES)
         self.loaded_models: dict[str, ZGPULLM] = {}
-        self.default_model_name: str = "zgpu-small"
+        self.tokenizers: dict[str, ThaiMultilingualTokenizer] = {}
+        self.default_model_name: str = "zgpu-thai"
 
-        # Pre-initialize the default model
+        # Pre-initialize the default Thai model
         self.get_or_load(self.default_model_name)
+
+    def _get_tokenizer(self, model_name: str) -> ThaiMultilingualTokenizer:
+        profile = self.profiles.get(model_name, self.profiles[self.default_model_name])
+        vocab_size = profile.config.vocab_size
+        if model_name not in self.tokenizers or self.tokenizers[model_name].vocab_size != vocab_size:
+            self.tokenizers[model_name] = ThaiMultilingualTokenizer(vocab_size=vocab_size)
+        return self.tokenizers[model_name]
 
     def list_models(self) -> list[dict[str, Any]]:
         """List all registered model profiles and their loaded status."""
@@ -115,16 +130,12 @@ class ModelRegistry:
         return self.loaded_models[name]
 
     def tokenize(self, model_name: str, text: str) -> list[int]:
-        profile = self.profiles.get(model_name, self.profiles[self.default_model_name])
-        vocab_size = profile.config.vocab_size
-        return [ord(c) % vocab_size for c in text]
+        tok = self._get_tokenizer(model_name)
+        return tok.encode(text)
 
-    def detokenize(self, tokens: list[int]) -> str:
-        chars = []
-        for t in tokens:
-            c = chr(32 + (t % 95))
-            chars.append(c)
-        return "".join(chars)
+    def detokenize(self, model_name: str, tokens: list[int]) -> str:
+        tok = self._get_tokenizer(model_name)
+        return tok.decode(tokens)
 
     def generate(self, prompt: str, model_name: str | None = None, max_tokens: int = 16) -> dict[str, Any]:
         target_model = model_name or self.default_model_name
@@ -137,7 +148,7 @@ class ModelRegistry:
 
         out_tokens = model.generate(token_ids, max_new_tokens=max_tokens)
         new_tokens = out_tokens[len(token_ids) :]
-        text_out = self.detokenize(new_tokens)
+        text_out = self.detokenize(target_model, new_tokens)
         latency_ms = (time.perf_counter() - t0) * 1000.0
 
         return {
