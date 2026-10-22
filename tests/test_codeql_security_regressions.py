@@ -1,9 +1,6 @@
 """Security regression tests for assembler parsing and beacon binding."""
 
-import socket
 from unittest.mock import patch
-
-import pytest
 
 from cluster.discovery.scanner import NetworkComputeScanner
 from isa.assembler import Assembler
