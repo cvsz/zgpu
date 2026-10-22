@@ -3,7 +3,13 @@
 import pytest
 
 from benchmarks import benchmark_ollama
-from benchmarks.benchmark_ollama import MAX_PROMPT_CHARS, _NoRedirectHandler, main, parse_measurement
+from benchmarks.benchmark_ollama import (
+    MAX_PROMPT_CHARS,
+    MAX_RESPONSE_BYTES,
+    _NoRedirectHandler,
+    main,
+    parse_measurement,
+)
 
 
 def test_ollama_uses_actual_eval_counters():
@@ -83,6 +89,30 @@ def test_run_once_installs_redirect_rejection(monkeypatch):
     benchmark_ollama.run_once("tiny", "prompt", 1, 3)
 
     assert any(isinstance(handler, _NoRedirectHandler) for handler in handlers)
+
+
+def test_run_once_rejects_oversized_response(monkeypatch):
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self, size):
+            assert size == MAX_RESPONSE_BYTES + 1
+            return b"x" * size
+
+    class FakeOpener:
+        def open(self, _request, timeout):
+            return FakeResponse()
+
+    monkeypatch.setattr(benchmark_ollama.urllib.request, "build_opener", lambda *_handlers: FakeOpener())
+
+    with pytest.raises(ValueError, match="too large"):
+        benchmark_ollama.run_once("tiny", "prompt", 1, 3)
 
 
 def test_cli_rejects_oversized_prompt_before_network():
