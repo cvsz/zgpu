@@ -19,6 +19,9 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to GitHub Pages
+    # Pages is optional; only deploy after it has been enabled and configured
+    # with GitHub Actions as the build source in repository Settings > Pages.
+    if: ${{ vars.DOCS_PAGES_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
