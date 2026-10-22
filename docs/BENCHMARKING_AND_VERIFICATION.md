@@ -63,3 +63,30 @@ PYTHONPATH=/home/cvsz/zGPU python3 /home/cvsz/zGPU/benchmarks/benchmark_llm.py
 ```
 - Measures average 16×16 tiled GEMM latency.
 - Measures tokens-per-second (TPS) and per-token generation latency for Transformer decoder inference.
+
+
+## Local Ollama reference benchmark (opt-in)
+
+This is a **baseline for an Ollama model on the current host**, not a comparison
+against the tiny zGPU simulator model or evidence that zISA accelerates it.
+No model is downloaded by the script. The endpoint is fixed to
+`http://127.0.0.1:11434/api/generate`; do not expose an unauthenticated Ollama
+service to untrusted networks.
+
+Prerequisites: a running local Ollama service and a model already installed.
+
+```bash
+PYTHONPATH=$(pwd) python3 -m benchmarks.benchmark_ollama --model YOUR_INSTALLED_MODEL --warmups 1 --repeats 5 --num-predict 32 --output ollama-baseline.json
+```
+
+Samples use Ollama's reported `eval_count` / `eval_duration` for decode throughput,
+with warm-up excluded from measured samples. The output contains individual
+samples and median decode tokens/sec. Check model name, CPU capabilities,
+quantization, temperature, thread configuration, prompt and warm-up conditions
+before comparing equivalent Ollama runs. Do not compare these throughput numbers
+to zGPU's toy model as if the models, backends or workloads were equivalent.
+
+Native SIMD kernels, llama.cpp direct API support, and zISA device acceleration
+are **not implemented** by this benchmark. A meaningful speedup requires paired
+measurements using the same model, quantization, prompts and hardware with
+validated numerical/output quality.
