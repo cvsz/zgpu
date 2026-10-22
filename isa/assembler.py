@@ -73,11 +73,13 @@ class Assembler:
         # Pass 2: Assemble instructions
         bytecode: list[int] = []
         for curr_pc, line in clean_lines:
-            compact_line = "".join(line.split())
-            if ",," in compact_line or compact_line.endswith(","):
+            parts = line.split(None, 1)
+            mnemonic = parts[0].upper()
+            operand_text = parts[1].strip() if len(parts) > 1 else ""
+            operands = [operand.strip() for operand in operand_text.split(",")] if operand_text else []
+            if any(not operand for operand in operands):
                 raise ValueError(f"Malformed operand separators in line: {line}")
-            tokens = [t.strip().rstrip(",") for t in line.split() if t.strip()]
-            mnemonic = tokens[0].upper()
+            tokens = [mnemonic, *operands]
             if mnemonic not in OPCODE_MAP:
                 raise ValueError(f"Unknown instruction '{mnemonic}' at line: {line}")
 
