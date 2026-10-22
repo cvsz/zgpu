@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import re
-
 from isa.instructions import Instruction, Opcode
 
 OPCODE_MAP = {
@@ -50,7 +48,7 @@ class Assembler:
         # Pass 1: Collect labels and strip comments
         pc = 0
         for line in lines:
-            line = re.sub(r"#.*$", "", line).strip()
+            line = line.partition("#")[0].strip()
             if not line:
                 continue
             if line.endswith(":"):
