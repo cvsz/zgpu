@@ -36,8 +36,9 @@ def _memory_gib() -> float | None:
             if line.startswith("MemTotal:"):
                 return round(int(line.split()[1]) / 1048576, 2)
     if os.name == "nt":
-        raw = _command(["powershell", "-NoProfile", "-NonInteractive", "-Command",
-                        "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory"])
+        raw = _command(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory"]
+        )
         try:
             return round(int(raw.strip()) / 1073741824, 2)
         except ValueError:
@@ -47,8 +48,9 @@ def _memory_gib() -> float | None:
 
 def _linux_gpus() -> list[dict]:
     devices = []
-    raw = _command(["nvidia-smi", "--query-gpu=name,memory.total,uuid",
-                    "--format=csv,noheader,nounits"], timeout=5)
+    raw = _command(
+        ["nvidia-smi", "--query-gpu=name,memory.total,uuid", "--format=csv,noheader,nounits"], timeout=5
+    )
     for line in raw.splitlines():
         parts = [v.strip() for v in line.split(",")]
         if len(parts) == 3:
@@ -56,15 +58,15 @@ def _linux_gpus() -> list[dict]:
                 memory = round(float(parts[1]) / 1024, 2)
             except ValueError:
                 memory = None
-            devices.append({"name": parts[0], "vram_gib": memory,
-                            "backend": "cuda", "device_id": parts[2]})
+            devices.append({"name": parts[0], "vram_gib": memory, "backend": "cuda", "device_id": parts[2]})
     if not devices:
         # PCI listings do not establish usable VRAM or driver support.
         raw = _command(["lspci", "-nn"])
         for line in raw.splitlines():
             if re.search(r"VGA compatible controller|3D controller|Display controller", line, re.I):
-                devices.append({"name": line.split(": ", 1)[-1][:180],
-                                "vram_gib": None, "backend": "unknown", "device_id": None})
+                devices.append(
+                    {"name": line.split(": ", 1)[-1][:180], "vram_gib": None, "backend": "unknown", "device_id": None}
+                )
     return devices[:32]
 
 
@@ -81,10 +83,13 @@ def collect(node_id: str, approved: bool) -> dict:
             cpu = line.partition(":")[2].strip()
             break
     record = {
-        "schema": SCHEMA, "node_id": node_id,
+        "schema": SCHEMA,
+        "node_id": node_id,
         "observed_at": dt.datetime.now(dt.UTC).isoformat(),
-        "authorized": True, "source": "local-opt-in",
-        "os": platform.system(), "arch": platform.machine(),
+        "authorized": True,
+        "source": "local-opt-in",
+        "os": platform.system(),
+        "arch": platform.machine(),
         "cpu": {"name": cpu, "logical_cores": cores},
         "ram_gib": _memory_gib(),
         "gpus": _linux_gpus() if os.name != "nt" else [],
@@ -103,15 +108,13 @@ def _valid(record: dict) -> bool:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", record["node_id"]):
             return False
         ram = record["ram_gib"]
-        if ram is not None and (not isinstance(ram, (int, float)) or isinstance(ram, bool)
-                                or not 0 < ram < 8192):
+        if ram is not None and (not isinstance(ram, (int, float)) or isinstance(ram, bool) or not 0 < ram < 8192):
             return False
         if not isinstance(record["gpus"], list) or len(record["gpus"]) > 32:
             return False
         for gpu in record["gpus"]:
             vram = gpu["vram_gib"]
-            if vram is not None and (not isinstance(vram, (int, float)) or isinstance(vram, bool)
-                                     or not 0 < vram < 1024):
+            if vram is not None and (not isinstance(vram, (int, float)) or isinstance(vram, bool) or not 0 < vram < 1024):
                 return False
         return True
     except (KeyError, ValueError, TypeError, AttributeError):
@@ -122,30 +125,37 @@ def _rank(record: dict, model: str) -> dict:
     # Do not count RAM and VRAM as an additive pool: unified memory / offload
     # suitability depends on backend support. Ranking is planning-only.
     ram = record.get("ram_gib") or 0
-    vram = max((g.get("vram_gib") or 0 for g in record["gpus"]
-                if g.get("backend") == "cuda"), default=0)
+    vram = max((g.get("vram_gib") or 0 for g in record["gpus"] if g.get("backend") == "cuda"), default=0)
     usable_ram = max(0.0, ram - max(4.0, ram * 0.2))
     usable_vram = max(0.0, vram - 2.0)
     required = MODELS[model]
     feasible = usable_ram >= required or usable_vram >= required
     capacity = max(usable_ram, usable_vram)
     bench = record.get("benchmark")
-    verified_bench = (isinstance(bench, dict) and bench.get("verified") is True
-                      and isinstance(bench.get("tokens_per_second"), (int, float))
-                      and not isinstance(bench.get("tokens_per_second"), bool)
-                      and 0 < bench["tokens_per_second"] < 100000
-                      and isinstance(bench.get("evidence_sha256"), str)
-                      and re.fullmatch(r"[0-9a-f]{64}", bench["evidence_sha256"]))
+    verified_bench = (
+        isinstance(bench, dict)
+        and bench.get("verified") is True
+        and isinstance(bench.get("tokens_per_second"), (int, float))
+        and not isinstance(bench.get("tokens_per_second"), bool)
+        and 0 < bench["tokens_per_second"] < 100000
+        and isinstance(bench.get("evidence_sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", bench["evidence_sha256"])
+    )
     # Explicitly prioritize feasibility over heuristic score. Do not infer
     # acceleration from PCI presence or unverified claimed benchmarks.
-    score = round(min(capacity / required, 2) * 50 + (min(bench["tokens_per_second"], 100) / 2
-                  if verified_bench else 0), 2)
-    return {"node_id": record["node_id"], "model": model,
-            "single_node_candidate": feasible,
-            "usable_ram_gib_estimate": round(usable_ram, 2),
-            "usable_cuda_vram_gib_estimate": round(usable_vram, 2),
-            "benchmark_evidence": "reported-with-hash" if verified_bench else "missing",
-            "score": score, "status": "capacity-estimate-only"}
+    score = round(
+        min(capacity / required, 2) * 50 + (min(bench["tokens_per_second"], 100) / 2 if verified_bench else 0), 2
+    )
+    return {
+        "node_id": record["node_id"],
+        "model": model,
+        "single_node_candidate": feasible,
+        "usable_ram_gib_estimate": round(usable_ram, 2),
+        "usable_cuda_vram_gib_estimate": round(usable_vram, 2),
+        "benchmark_evidence": "reported-with-hash" if verified_bench else "missing",
+        "score": score,
+        "status": "capacity-estimate-only",
+    }
 
 
 def rank_files(paths: list[str], model: str) -> dict:
@@ -172,11 +182,15 @@ def rank_files(paths: list[str], model: str) -> dict:
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
             rejected.append({"file": Path(path).name, "reason": str(exc)})
     results.sort(key=lambda x: (not x["single_node_candidate"], -x["score"], x["node_id"]))
-    return {"schema": "zgpu.ranking.v1", "model": model,
-            "planning_weight_budget_gib": MODELS[model],
-            "nodes": results, "rejected": rejected,
-            "warning": "Offline self-reported inventory; hashes are integrity markers, not attestations. "
-                       "No real-model load, GPU capability, LAN speed or distributed sharding has been verified."}
+    return {
+        "schema": "zgpu.ranking.v1",
+        "model": model,
+        "planning_weight_budget_gib": MODELS[model],
+        "nodes": results,
+        "rejected": rejected,
+        "warning": "Offline self-reported inventory; hashes are integrity markers, not attestations. "
+        "No real-model load, GPU capability, LAN speed or distributed sharding has been verified.",
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
