@@ -36,6 +36,8 @@ def parse_measurement(data: dict) -> dict:
     duration = data.get("eval_duration")
     if type(count) is not int or count < 0 or type(duration) is not int or duration < 0:
         raise ValueError("Invalid Ollama evaluation counters")
+    if count > 0 and duration == 0:
+        raise ValueError("Ollama reported generated tokens with zero evaluation duration")
     prompt_count = data.get("prompt_eval_count")
     total_duration = data.get("total_duration")
     if prompt_count is not None and (type(prompt_count) is not int or prompt_count < 0):

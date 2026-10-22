@@ -34,6 +34,7 @@ def test_ollama_uses_actual_eval_counters():
         {"done": False, "eval_count": 2, "eval_duration": 50},
         {"done": True, "eval_count": True, "eval_duration": 50},
         {"done": True, "eval_count": 2, "eval_duration": -1},
+        {"done": True, "eval_count": 2, "eval_duration": 0},
         {"done": True, "eval_count": "2", "eval_duration": 1},
         {"done": True, "eval_count": 2, "eval_duration": 50, "prompt_eval_count": True},
         {"done": True, "eval_count": 2, "eval_duration": 50, "total_duration": -1},
