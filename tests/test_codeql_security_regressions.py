@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from cluster.discovery.scanner import NetworkComputeScanner
 from isa.assembler import Assembler
-from isa.instructions import Opcode, Instruction
+from isa.instructions import Instruction, Opcode
 
 
 def test_assembler_strips_inline_comment_without_regex():
