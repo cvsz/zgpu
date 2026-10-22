@@ -82,7 +82,7 @@ def collect(node_id: str, approved: bool) -> dict:
             break
     record = {
         "schema": SCHEMA, "node_id": node_id,
-        "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "observed_at": dt.datetime.now(dt.UTC).isoformat(),
         "authorized": True, "source": "local-opt-in",
         "os": platform.system(), "arch": platform.machine(),
         "cpu": {"name": cpu, "logical_cores": cores},
