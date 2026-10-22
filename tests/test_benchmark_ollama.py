@@ -2,7 +2,7 @@
 
 import pytest
 
-from benchmarks.benchmark_ollama import parse_measurement, main
+from benchmarks.benchmark_ollama import main, parse_measurement
 
 
 def test_ollama_uses_actual_eval_counters():
