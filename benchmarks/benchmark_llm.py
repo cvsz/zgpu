@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 
+from benchmarks.metrics import generation_metrics
 from kernels.llm_kernels import LLMKernels
 from llm.transformer import ZGPULLM, LLMConfig
 from runtime.runtime import ZRuntime
@@ -17,7 +18,7 @@ from runtime.runtime import ZRuntime
 
 def run_llm_benchmarks():
     print("=" * 60)
-    print("🚀 zGPU Silicon Hardware & LLM Acceleration Benchmark")
+    print("zGPU simulated tensor and tiny transformer benchmark (not physical silicon)")
     print("=" * 60)
 
     rt = ZRuntime()
@@ -56,16 +57,14 @@ def run_llm_benchmarks():
     output_tokens = model.generate(prompt, max_new_tokens=num_gen_tokens)
     t1 = time.perf_counter()
 
-    total_gen_time = t1 - t0
-    tps = num_gen_tokens / total_gen_time
-    ms_per_token = (total_gen_time / num_gen_tokens) * 1000.0
+    metrics = generation_metrics(prompt, output_tokens, t1 - t0, num_gen_tokens)
 
     print(f"  • Input Prompt Tokens: {prompt}")
     print(f"  • Output Tokens: {output_tokens}")
-    print(f"  • Generated Tokens: {num_gen_tokens}")
-    print(f"  • Total Inference Time: {total_gen_time * 1000.0:.2f} ms")
-    print(f"  • Throughput: {tps:.2f} tokens/second ({ms_per_token:.2f} ms/token)")
-    print("\n✅ zGPU Silicon & LLM Benchmark Complete!")
+    print(f"  • Generated Tokens: {metrics.generated_tokens} (requested: {num_gen_tokens})")
+    print(f"  • Total Inference Time: {metrics.elapsed_seconds * 1000.0:.2f} ms")
+    print(f"  • Throughput: {metrics.tokens_per_second:.2f} tokens/second ({metrics.ms_per_token:.2f} ms/token)")
+    print("\nzGPU simulator benchmark complete (no hardware speedup claim)")
     print("=" * 60)
 
 
