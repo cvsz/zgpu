@@ -21,8 +21,13 @@ def test_zero_generated_tokens_is_not_infinite_speed():
 
 @pytest.mark.parametrize(
     "prompt,output,elapsed,requested",
-    [([1], [2], 0.5, 1), ([1], [1, 2, 3], 0.5, 1), ([1], [1], -0.5, 0),
-     ([1], [1], float("nan"), 0), ([1], [1], 0.5, -1)],
+    [
+        ([1], [2], 0.5, 1),
+        ([1], [1, 2, 3], 0.5, 1),
+        ([1], [1], -0.5, 0),
+        ([1], [1], float("nan"), 0),
+        ([1], [1], 0.5, -1),
+    ],
 )
 def test_rejects_invalid_measurement(prompt, output, elapsed, requested):
     with pytest.raises(ValueError):

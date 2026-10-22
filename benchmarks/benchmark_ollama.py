@@ -38,14 +38,18 @@ def parse_measurement(data: dict) -> dict:
 
 
 def run_once(model: str, prompt: str, num_predict: int, timeout: float) -> dict:
-    payload = json.dumps({
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"num_predict": num_predict, "temperature": 0},
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"num_predict": num_predict, "temperature": 0},
+        }
+    ).encode("utf-8")
     req = urllib.request.Request(
-        OLLAMA_URL, data=payload, method="POST",
+        OLLAMA_URL,
+        data=payload,
+        method="POST",
         headers={"Content-Type": "application/json"},
     )
     started = time.perf_counter_ns()
