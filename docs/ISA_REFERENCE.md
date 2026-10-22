@@ -39,8 +39,12 @@ All instructions are fixed 32-bit aligned words. Bitfield layout:
 - **`rs1` [18:14]**: 5-bit first source register index (`R0` - `R31`).
 - **`rs2` [23:19]**: 5-bit second source register index (`R0` - `R31`).
 - **`imm8 / rs3` [31:24]**: 
-  - For standard ALU and memory instructions: 8-bit signed immediate value `[-128..127]`.
-  - For `MMA.SYNC` (Tensor Core ops): 5-bit third source register index `rs3` (accumulator input).
+  - For immediate-bearing instructions: 8-bit signed immediate value `[-128..127]`.
+  - For `VFFMA` and `MMA.SYNC`: 5-bit third source register index `rs3` in bits `[28:24]`; bits `[31:29]` are reserved and must be zero.
+
+The register file has 128 entries, but this encoding exposes only `R0`–`R31` as source operands. `R32`–`R127` are encodable as destinations only. The codec rejects source and destination indices that do not fit their respective fields instead of truncating them.
+
+Fields unused by an instruction format are reserved and must be zero in an encoded instruction word.
 
 ---
 
@@ -84,8 +88,8 @@ Operates concurrently across all active lanes of the warp.
 ### 3.5 Warp Divergence & Flow Control
 | Opcode (Hex) | Mnemonic | Format | Semantics |
 |---|---|---|---|
-| `0x30` | `BRA imm` | B-Type | Unconditional branch: `PC = PC + imm` |
-| `0x31` | `BRA.DIV rs1, imm` | B-Type | Divergent branch on vector condition `rs1 != 0`. Pushes `ActiveMask` to divergence stack. |
+| `0x30` | `BRA target` | B-Type | Unconditional branch by signed relative offset or label. |
+| `0x31` | `BRA.DIV target, rs1` | B-Type | Divergent branch to a signed relative offset or label when `rs1 != 0`; reconverges through `JOIN`. |
 | `0x32` | `JOIN` | - | Reconvergence pop: restores previous `ActiveMask` from stack. |
 | `0x33` | `BAR.SYNC` | - | Block barrier synchronization across all warps. |
 
@@ -113,3 +117,7 @@ VFADD R11, R10, R9      # res = ax + y
 VSTORE.G R7, R11, 0     # *addr_y = res
 HALT
 ```
+
+The assembler rejects malformed operand counts or separators, duplicate labels, out-of-range registers, and immediates outside `[-128..127]`. The decoder rejects words outside 32 bits, nonzero reserved fields, and unknown opcodes; unknown opcodes do not alias `NOP`.
+
+The software simulator implements the opcodes in this catalog, including the 32-lane barrier rendezvous. The current `rtl/zgpu_lane.sv` is a partial execution lane, not a complete zISA decoder or implementation. It currently computes the integer ALU subset wired in its `case` statement; other operations in this catalog remain unsupported by RTL.

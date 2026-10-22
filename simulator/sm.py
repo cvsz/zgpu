@@ -29,9 +29,21 @@ class StreamingMultiprocessor:
         self.active_warp_idx = 0
         self.cycle_count = 0
         self.instructions_retired = 0
+        self._barrier_waiting: set[int] = set()
 
     def launch_warps(self, num_warps: int, block_id: int = 0):
         self.warps = [Warp(w_id, block_id) for w_id in range(num_warps)]
+        self._barrier_waiting.clear()
+
+    def _arrive_at_barrier(self, warp: Warp) -> None:
+        warp.stalled = True
+        self._barrier_waiting.add(warp.warp_id)
+        participants = {candidate.warp_id for candidate in self.warps if not candidate.halted}
+        if participants.issubset(self._barrier_waiting):
+            for candidate in self.warps:
+                if candidate.warp_id in self._barrier_waiting:
+                    candidate.stalled = False
+            self._barrier_waiting.clear()
 
     def is_finished(self) -> bool:
         return all(w.halted for w in self.warps)
@@ -78,6 +90,12 @@ class StreamingMultiprocessor:
 
         elif op == Opcode.HALT:
             warp.halted = True
+            participants = {candidate.warp_id for candidate in self.warps if not candidate.halted}
+            if participants.issubset(self._barrier_waiting):
+                for candidate in self.warps:
+                    if candidate.warp_id in self._barrier_waiting:
+                        candidate.stalled = False
+                self._barrier_waiting.clear()
             return
 
         elif op == Opcode.GET_TID:
@@ -112,6 +130,20 @@ class StreamingMultiprocessor:
                     v2 = warp.rf[lane][inst.rs2]
                     warp.rf[lane][inst.rd] = (v1 * v2) & 0xFFFFFFFF
 
+        elif op in (Opcode.VAND, Opcode.VOR, Opcode.VXOR):
+            for lane in range(WARP_SIZE):
+                if not warp.is_active(lane):
+                    continue
+                v1 = warp.rf[lane][inst.rs1]
+                v2 = warp.rf[lane][inst.rs2]
+                if op == Opcode.VAND:
+                    result = v1 & v2
+                elif op == Opcode.VOR:
+                    result = v1 | v2
+                else:
+                    result = v1 ^ v2
+                warp.rf[lane][inst.rd] = result
+
         # Floating Point Operations
         elif op == Opcode.VFADD:
             for lane in range(WARP_SIZE):
@@ -119,6 +151,13 @@ class StreamingMultiprocessor:
                     f1 = bits_to_f32(warp.rf[lane][inst.rs1])
                     f2 = bits_to_f32(warp.rf[lane][inst.rs2])
                     warp.rf[lane][inst.rd] = f32_to_bits(f1 + f2)
+
+        elif op == Opcode.VFSUB:
+            for lane in range(WARP_SIZE):
+                if warp.is_active(lane):
+                    f1 = bits_to_f32(warp.rf[lane][inst.rs1])
+                    f2 = bits_to_f32(warp.rf[lane][inst.rs2])
+                    warp.rf[lane][inst.rd] = f32_to_bits(f1 - f2)
 
         elif op == Opcode.VFMUL:
             for lane in range(WARP_SIZE):
@@ -179,6 +218,9 @@ class StreamingMultiprocessor:
 
         elif op == Opcode.JOIN:
             warp.pop_divergence()
+
+        elif op == Opcode.BAR_SYNC:
+            self._arrive_at_barrier(warp)
 
         # Tensor MMA Acceleration (4x4 Matrix Multiply Tile)
         elif op == Opcode.MMA_SYNC:
