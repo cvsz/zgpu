@@ -3,6 +3,7 @@
 No network probing, remote command execution or automatic enrollment.
 Run on each authorized host and transfer the resulting JSON through an approved channel.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,7 +38,13 @@ def _memory_gib() -> float | None:
                 return round(int(line.split()[1]) / 1048576, 2)
     if os.name == "nt":
         raw = _command(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory"]
+            [
+                "powershell",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory",
+            ]
         )
         try:
             return round(int(raw.strip()) / 1073741824, 2)
@@ -48,9 +55,7 @@ def _memory_gib() -> float | None:
 
 def _linux_gpus() -> list[dict]:
     devices = []
-    raw = _command(
-        ["nvidia-smi", "--query-gpu=name,memory.total,uuid", "--format=csv,noheader,nounits"], timeout=5
-    )
+    raw = _command(["nvidia-smi", "--query-gpu=name,memory.total,uuid", "--format=csv,noheader,nounits"], timeout=5)
     for line in raw.splitlines():
         parts = [v.strip() for v in line.split(",")]
         if len(parts) == 3:
@@ -114,7 +119,9 @@ def _valid(record: dict) -> bool:
             return False
         for gpu in record["gpus"]:
             vram = gpu["vram_gib"]
-            if vram is not None and (not isinstance(vram, (int, float)) or isinstance(vram, bool) or not 0 < vram < 1024):
+            if vram is not None and (
+                not isinstance(vram, (int, float)) or isinstance(vram, bool) or not 0 < vram < 1024
+            ):
                 return False
         return True
     except (KeyError, ValueError, TypeError, AttributeError):
