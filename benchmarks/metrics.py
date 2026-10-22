@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -21,8 +22,6 @@ def generation_metrics(
     Requires the model output to preserve the prompt prefix and not exceed
     the requested generation budget. Timing must be finite and nonnegative.
     """
-    import math
-
     if requested_tokens < 0:
         raise ValueError("requested_tokens must be nonnegative")
     if not math.isfinite(elapsed_seconds) or elapsed_seconds < 0:
@@ -32,6 +31,8 @@ def generation_metrics(
     generated = len(output) - len(prompt)
     if generated > requested_tokens:
         raise ValueError("generated token count exceeds requested limit")
-    throughput = generated / elapsed_seconds if elapsed_seconds > 0 else 0.0
+    if generated and elapsed_seconds == 0:
+        raise ValueError("elapsed_seconds must be positive when tokens were generated")
+    throughput = generated / elapsed_seconds if generated else 0.0
     latency = elapsed_seconds * 1000.0 / generated if generated else 0.0
     return GenerationMetrics(generated, elapsed_seconds, throughput, latency)
