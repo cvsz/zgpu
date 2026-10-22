@@ -11,7 +11,6 @@ from __future__ import annotations
 import time
 
 from benchmarks.metrics import generation_metrics
-
 from kernels.llm_kernels import LLMKernels
 from llm.transformer import ZGPULLM, LLMConfig
 from runtime.runtime import ZRuntime
