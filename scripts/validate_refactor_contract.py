@@ -2,6 +2,7 @@
 
 This tool never runs generated code, calls a model, or merges a pull request.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -9,10 +10,21 @@ import json
 import re
 from pathlib import Path
 
-ALLOWED_AREAS = frozenset({
-    "isa", "compiler", "simulator", "runtime", "kernels", "llm",
-    "cluster", "distributed", "tests", "docs", "self_coding",
-})
+ALLOWED_AREAS = frozenset(
+    {
+        "isa",
+        "compiler",
+        "simulator",
+        "runtime",
+        "kernels",
+        "llm",
+        "cluster",
+        "distributed",
+        "tests",
+        "docs",
+        "self_coding",
+    }
+)
 REQUIRED_GATES = ("ruff_check", "ruff_format", "pytest", "codeql", "independent_review")
 MAX_BYTES = 65536
 
@@ -29,8 +41,10 @@ def validate_contract(payload: object) -> list[str]:
     if payload.get("mode") != "proposal-only":
         errors.append("mode must be proposal-only")
     areas = payload.get("areas")
-    if not isinstance(areas, list) or not areas or any(
-        not isinstance(area, str) or area not in ALLOWED_AREAS for area in areas
+    if (
+        not isinstance(areas, list)
+        or not areas
+        or any(not isinstance(area, str) or area not in ALLOWED_AREAS for area in areas)
     ):
         errors.append("areas must be a nonempty subset of supported directories")
     elif len(set(areas)) != len(areas):
