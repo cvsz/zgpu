@@ -161,15 +161,17 @@ class NetworkComputeScanner:
 
         return discovered
 
-    def listen_beacons(self, duration_seconds: float = 2.0, port: int = DEFAULT_BEACON_PORT) -> list[DiscoveredNode]:
-        """Listens for UDP broadcast beacons sent by local compute workers."""
+    def listen_beacons(
+        self, duration_seconds: float = 2.0, port: int = DEFAULT_BEACON_PORT, bind_host: str = "127.0.0.1"
+    ) -> list[DiscoveredNode]:
+        """Listen on loopback by default; LAN reception requires explicit bind_host."""
         discovered = []
         seen = set()
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            sock.bind(("", port))
+            sock.bind((bind_host, port))
         except Exception as e:
             log.debug("Could not bind UDP beacon listener: %s", e)
             return []
