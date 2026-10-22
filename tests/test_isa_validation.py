@@ -87,6 +87,7 @@ def test_decode_rejects_reserved_fields_on_simple_instructions():
         "VADD R1, R2, R3,",
         "VADD R1 R2 R3",
         "VADD R1, R32, R3",
+        "VADD R1, R+2, R3",
         "VLOAD.G R1, R2, 128",
         "NOP R1",
         "BRA 1, R2",

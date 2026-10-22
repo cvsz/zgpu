@@ -34,7 +34,9 @@ OPCODE_MAP = {
 def parse_reg(token: str) -> int:
     token = token.strip().upper()
     if token.startswith("R"):
-        return int(token[1:])
+        register_index = token[1:]
+        if register_index.isascii() and register_index.isdigit():
+            return int(register_index)
     raise ValueError(f"Invalid register name: {token}")
 
 
