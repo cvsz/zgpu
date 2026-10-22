@@ -15,16 +15,33 @@ import urllib.request
 from pathlib import Path
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+MAX_PROMPT_CHARS = 16_384
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Reject redirects so local prompts cannot be forwarded to another host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def parse_measurement(data: dict) -> dict:
     """Use Ollama's eval counters and nanosecond durations, not guessed token counts."""
+    if not isinstance(data, dict):
+        raise ValueError("Ollama response must be a JSON object")
     if data.get("done") is not True:
         raise ValueError("Ollama response is incomplete")
     count = data.get("eval_count")
     duration = data.get("eval_duration")
     if type(count) is not int or count < 0 or type(duration) is not int or duration < 0:
         raise ValueError("Invalid Ollama evaluation counters")
+    prompt_count = data.get("prompt_eval_count")
+    total_duration = data.get("total_duration")
+    if prompt_count is not None and (type(prompt_count) is not int or prompt_count < 0):
+        raise ValueError("Invalid Ollama prompt evaluation counter")
+    if total_duration is not None and (type(total_duration) is not int or total_duration < 0):
+        raise ValueError("Invalid Ollama total duration")
     tps = count * 1e9 / duration if duration > 0 else 0.0
     if not math.isfinite(tps):
         raise ValueError("Nonfinite throughput")
@@ -32,8 +49,8 @@ def parse_measurement(data: dict) -> dict:
         "generated_tokens": count,
         "eval_duration_ns": duration,
         "decode_tokens_per_second": tps,
-        "prompt_tokens": data.get("prompt_eval_count"),
-        "total_duration_ns": data.get("total_duration"),
+        "prompt_tokens": prompt_count,
+        "total_duration_ns": total_duration,
     }
 
 
@@ -53,14 +70,19 @@ def run_once(model: str, prompt: str, num_predict: int, timeout: float) -> dict:
         headers={"Content-Type": "application/json"},
     )
     started = time.perf_counter_ns()
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    opener = urllib.request.build_opener(_NoRedirectHandler())
+    with opener.open(req, timeout=timeout) as resp:
         if resp.status != 200:
             raise RuntimeError(f"Ollama HTTP status {resp.status}")
-        body = resp.read(4 * 1024 * 1024 + 1)
-        if len(body) > 4 * 1024 * 1024:
+        body = resp.read(MAX_RESPONSE_BYTES + 1)
+        if len(body) > MAX_RESPONSE_BYTES:
             raise ValueError("Ollama response too large")
     wall_ns = time.perf_counter_ns() - started
-    parsed = parse_measurement(json.loads(body))
+    try:
+        decoded = json.loads(body)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Ollama returned invalid JSON") from exc
+    parsed = parse_measurement(decoded)
     parsed["wall_duration_ns"] = wall_ns
     return parsed
 
@@ -75,8 +97,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
-    if not args.model.strip() or not 1 <= args.num_predict <= 4096:
-        parser.error("model must be nonempty and num-predict must be 1..4096")
+    args.model = args.model.strip()
+    if not args.model or len(args.model) > 256 or not 1 <= args.num_predict <= 4096:
+        parser.error("model must be 1..256 characters and num-predict must be 1..4096")
+    if not isinstance(args.prompt, str) or len(args.prompt) > MAX_PROMPT_CHARS:
+        parser.error(f"prompt must be a string of at most {MAX_PROMPT_CHARS} characters")
     if not 1 <= args.repeats <= 100 or not 0 <= args.warmups <= 20:
         parser.error("repeats must be 1..100 and warmups 0..20")
     if not math.isfinite(args.timeout) or not 1 <= args.timeout <= 3600:
@@ -96,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         "median_decode_tokens_per_second": statistics.median(s["decode_tokens_per_second"] for s in samples),
         "note": "Standalone Ollama reference only; no zGPU performance acceleration claim",
     }
-    serialized = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    serialized = json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n"
     if args.output:
         args.output.write_text(serialized, encoding="utf-8")
     print(serialized, end="")
