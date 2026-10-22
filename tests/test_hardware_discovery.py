@@ -9,12 +9,17 @@ from cluster.hardware_discovery import _rank, collect, rank_files
 
 def sample(node_id="node-a", ram=64, gpus=None):
     return {
-        "schema": "zgpu.hardware.v1", "node_id": node_id,
+        "schema": "zgpu.hardware.v1",
+        "node_id": node_id,
         "observed_at": "2026-10-22T00:00:00+00:00",
-        "authorized": True, "source": "local-opt-in",
-        "os": "Linux", "arch": "x86_64",
+        "authorized": True,
+        "source": "local-opt-in",
+        "os": "Linux",
+        "arch": "x86_64",
         "cpu": {"name": "CPU", "logical_cores": 8},
-        "ram_gib": ram, "gpus": gpus or [], "benchmark": None,
+        "ram_gib": ram,
+        "gpus": gpus or [],
+        "benchmark": None,
     }
 
 
@@ -57,8 +62,7 @@ def test_rejects_unapproved_duplicated_and_malformed(tmp_path):
 
 
 def test_unknown_gpu_not_counted_as_usable_cuda(tmp_path):
-    path = write(tmp_path, "gpu.json", sample(
-        "unknown", 8, [{"name": "GPU", "vram_gib": 80, "backend": "unknown"}]))
+    path = write(tmp_path, "gpu.json", sample("unknown", 8, [{"name": "GPU", "vram_gib": 80, "backend": "unknown"}]))
     result = rank_files([path], "70b-q4")
     assert not result["nodes"][0]["single_node_candidate"]
 
@@ -66,8 +70,7 @@ def test_unknown_gpu_not_counted_as_usable_cuda(tmp_path):
 def test_integrity_hash_matches_raw_inventory(tmp_path):
     path = write(tmp_path, "hash.json", sample())
     result = rank_files([path], "32b-q4")
-    assert result["nodes"][0]["inventory_sha256"] == hashlib.sha256(
-        (tmp_path / "hash.json").read_bytes()).hexdigest()
+    assert result["nodes"][0]["inventory_sha256"] == hashlib.sha256((tmp_path / "hash.json").read_bytes()).hexdigest()
 
 
 def test_score_does_not_use_benchmark_without_hash():
